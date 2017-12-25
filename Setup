@@ -1,0 +1,8 @@
+Install git and vim-enhanced packages on the linux box.
+#yum install -y git vim-enhanced
+
+Configure git:
+#git config --global user.name "Amit Prajapati"
+#git config --global user.email "xxx"
+
+Set ~/.bashrc and ~/.vimrc for better scripting and programming in Developer env. 
