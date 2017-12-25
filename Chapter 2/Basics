@@ -24,10 +24,10 @@ Comments:
 start line with #
 eg. print("Hello World!") #This is a comment
 *************************************************************************************************************************************
-Data types: Sting and Numbers
+Data types: Sting, Numbers and Booleans
 
 Stings:--
-To find particular word/character inside the sentence/word
+To find particular word/character inside the sentence/word, if value is false function will return -1
 #'Amit'.find('t')
 #'Amit'.find('mit')
 
@@ -48,8 +48,15 @@ Escape Character'\': #print('New\\Line') OR #print("\'This is\' to test")
 
 Numbers:--
 Different number operations: Integer and Float data types
-int(), float() and str() are built in function types. You'll be able to perform standard arithmetic functions.
+int(), float(), bool() and str() are built in function types. You'll be able to perform standard arithmetic functions.
 Eg: int(1.5) >>1 OR float(1) >>1.0 OR str(5.6) >>'5.6'
+
+Booleans:--
+#bool('Amit') >>True and #bool('') >>False
+#bool(0) >>False and #bool(5) >>True
+
+Nothing:--
+#None
 ************************************************************************************************************************************
 
 Notes:
