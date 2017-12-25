@@ -12,3 +12,4 @@ Configure git:
 
 Set ~/.bashrc and ~/.vimrc for better scripting and programming in Developement env. 
 Reference: https://github.com/linuxacademy/content-python-for-sys-admins
+#exec $SHELL
