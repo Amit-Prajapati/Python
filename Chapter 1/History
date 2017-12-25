@@ -1,0 +1,19 @@
+Object programming Language
+Dynamic and Strong Type system: Dynamic means python interprets data types at run time rather than at compile time and
+Strong type means it doesn't swap the data type from one to another implicitly.
+Functional Concepts (map, reduce, filter etc): Functional programming concepts
+White-space delimited with psuedo-code like syntax
+
+Used across a variety of disciplines, including:
+> Academy
+> Data Science
+> DevOps
+> Web Development
+
+Runs on all major OS
+
+Should I use python 2 or 3 for my development activity???
+Reference: https://wiki.python.org/moin/Python2orPython3
+>> Python 2 is used as default on most of the linux distributor.
+For scripting users prefere 2 so they don't require any additional package or library to install on the servers.
+>> one of the difference is that, print statement replaced by print function. eg. print x, became print (x, end=" ")
