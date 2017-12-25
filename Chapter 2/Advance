@@ -1,0 +1,9 @@
+Variables: define with lowerCase
+#a_word = "Amit"
+#print(a_word)
+>>Amit
+
+Note: You can reallocate variable to different data types. Eg. my_int = 0; my_int = "int" ...Here data type changed from int to string
+****************************************************************************************************************************************
+
+Collection types: Lists and Tuples
