@@ -1,0 +1,56 @@
+Read Evaluate Print Loop (REPL) that Python provides to experiment with Python code and explore the language.
+To exit: ctrl + d OR exit()
+
+************************************************************************************************************************************
+create Python scripts and run them using the Python CLI or as an executable.
+------------------------------------
+#vim sample.py
+  print("Hello World!")
+#chmod u+x sample.py
+#python sample.py OR below steps are other way of executing python script
+
+#vim sample.py
+  #!/usr/local/bin/python
+  print("Hello World!")
+#chmod u+x sample.py
+#./sample.py
+-------------------------------------
+OR update PATH variable with the script location
+#export PATH=/home/lg712302/scripts/bin/:$PATH
+#hello
+-------------------------------------
+*************************************************************************************************************************************
+Comments:
+start line with #
+eg. print("Hello World!") #This is a comment
+*************************************************************************************************************************************
+Data types: Sting and Numbers
+
+Stings:--
+To find particular word/character inside the sentence/word
+#'Amit'.find('t')
+#'Amit'.find('mit')
+
+To lower the case any particular reason like to compare with another word
+#'PRAJApati'.lower()
+
+Concatenate
+# "aMIT" + "Prajapati"
+>>'aMITPrajapati'
+--------------------------------------
+Multiply
+#'Ha' * 4
+>>'HaHaHaHa'
+--------------------------------------
+Tab: #print('Tab\tDelimited')
+NewLine: #print('New\nLine')
+Escape Character'\': #print('New\\Line') OR #print("\'This is\' to test")
+
+Numbers:--
+Different number operations: Integer and Float data types
+int(), float() and str() are built in function types. You'll be able to perform standard arithmetic functions.
+Eg: int(1.5) >>1 OR float(1) >>1.0 OR str(5.6) >>'5.6'
+************************************************************************************************************************************
+
+Notes:
+You can no modify the existing string, you can create new one from the existing one.
