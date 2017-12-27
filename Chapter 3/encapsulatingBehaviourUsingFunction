@@ -1,0 +1,55 @@
+Encapsulating Behavior Using Functions:--
+
+#PS
+#Write a python script to calculate BMI index with the help of the functions.
+
+cat functions.py
+--------------------------------------------------------------------------------------------------------------------
+#!/usr/local/bin/python
+
+def gather_info():
+    height = float(raw_input("What is your height? "))
+    weight = float(raw_input("What is your weight? "))
+    unit = raw_input("Are your measurements in metric or imperial units? ").lower().strip()
+    return (height, weight,unit)
+
+def calculate(weight, height, unit="imperial"):
+    if unit == "imperial":
+        bmi = 703 * (weight / (height ** 2))
+    else:
+        bmi = (weight / (height ** 2))
+    print("Your BMI is %s" % bmi)
+
+while True:
+    height, weight, unit = gather_info()
+    if unit.startswith("i"):
+        calculate(weight, height)
+        break
+    elif unit.startswith("m"):
+        calculate(weight, unit="metric", height=height)
+        break
+    else:
+        print("Unknown measurement unit, Please user imperial or metric.")
+--------------------------------------------------------------------------------------------------------------------
+>>Output
+bin $ ./functions.py
+What is your height? 78
+What is your weight? 170
+Are your measurements in metric or imperial units? im Perial
+Your BMI is 19.6433267587
+bin $ ./functions.py
+What is your height? 78
+What is your weight? 170
+Are your measurements in metric or imperial units? Kelvin
+Unknown measurement unit, Please user imperial or metric.
+What is your height? 78
+What is your weight? 170
+Are your measurements in metric or imperial units?  Metric
+Your BMI is 0.0279421433268
+
+Notes:
+lower() - convert user whatever case input to the lower case
+strip() - to read value without whitespace/identify any ambiguous input like upperCase/lowerCase/whitespace in between single word
+def - is a keyword to define any function
+  example: def gather_info(): OR def calculate(weight, height, unit="imperial"):
+call function - calculate(weight, height) by keeping parameters in order OR calculate(weight, unit="metric", height=height) with random keyword definition.
