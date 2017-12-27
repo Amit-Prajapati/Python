@@ -25,6 +25,6 @@ elif user['active']:
 else:
     print(user['name'])
 
->>Output
-bin $ ./secondExercise.py
-Active - (Admin) Amit
+#>>Output
+#bin $ ./secondExercise.py
+#Active - (Admin) Amit
