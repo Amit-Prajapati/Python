@@ -1,0 +1,33 @@
+Reading user input:--
+raw_input()
+input() - It is sometimes dangerous to use because it parse the value to python interpreter 
+-------------------------------------------------------------------------------------------------
+Example:
+PS: Read user's name, birthdate and age and print.
+#!/usr/local/bin/python
+
+name = raw_input('What is your name? ')
+birthdate = raw_input('what is your birthdate? ')
+age = input('How old are you? ')
+
+print('%s was born on %s' % (name, birthdate))
+print('Half of the age is %s' % (age / 2))
+
+>>Output
+bin $ ./input.py
+What is your name? amit
+what is your birthdate? 30Aug1991
+How old are you? 27
+amit was born on 30Aug1991
+Half of the age is 13
+
+>>Error because of input function instead of raw_input function
+bin $ ./input.py
+What is your name? amit
+what is your birthdate? 30/08/1991
+How old are you? twenty-seven
+Traceback (most recent call last):
+  File "./input.py", line 5, in <module>
+    age = input('How old are you? ')
+  File "<string>", line 1, in <module>
+NameError: name 'twenty' is not defined
