@@ -31,3 +31,27 @@ You can iterarate over dictonary
 #for key, value in s.items():
 #    print(key)
 #    print(value)
+
+------------------------------------------------------------
+Logic operations
+
+not keyword
+#if not len("something") <=5:
+#    print("It's not!")
+
+is keyword
+#1 == 1
+>>True
+#1 is 1.0
+>>False
+Comment: Because it looks for exact part of the memory. id(1) will be different then id(1.0)
+
+and keyword
+#1 and 2
+>>2 Comment: python returns last true value
+#0 and 1
+>>0 Comment: python returns first false value
+#1 or 2
+>>1 Comment: it will never check for 2nd value
+#0 or 2
+>>2 Comment: because 1st value is false
