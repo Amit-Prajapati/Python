@@ -1,9 +1,33 @@
-Variables: define with lowerCase
-#a_word = "Amit"
-#print(a_word)
->>Amit
+Control Flow:-- 
+------------------------------------------------------------
+Conditionals and Comparisions flow
+<, >, ==, <=, >=, !=, #4 in [1, 2, 3]
 
-Note: You can reallocate variable to different data types. Eg. my_int = 0; my_int = "int" ...Here data type changed from int to string
-****************************************************************************************************************************************
+If, Elif and Else example:
+#name='Amit'
+#name2='Brother'
+#if len(name) <=4:
+#    print("Name: %s" % name)
+#elif len(name2) >=5:
+#    print("Name: %s" % name)
+#else:
+#    print("Name is too long")
+>>Name: Amit
 
-Collection types: Lists and Tuples
+------------------------------------------------------------
+Loops
+While and For loop
+
+#count = 0
+#while count <= 9:
+#    print("%s" % count)
+#    count += 1
+
+Keywords,
+#countinue, #break
+
+You can iterarate over dictonary 
+#s = { 'crow': 'black', 'cow': 'brown', 'parrot': 'green'}
+#for key, value in s.items():
+#    print(key)
+#    print(value)
