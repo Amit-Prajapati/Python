@@ -1,0 +1,37 @@
+Using Standard Library Packages:--
+#Reference: https://docs.python.org/2/library/index.html
+
+Python different than other scripting language because it comes with amazing libraries
+
+#PS
+#Write a python script to build a timer like stopWatch
+
+bin $ cat timer.py
+----------------------------------------------------------------------------------------------------------------------
+#!/usr/local/bin/python
+#import time
+from time import localtime, strftime, mktime
+
+start_time = localtime()
+print("Timer starts at %s" % strftime("%X", start_time))
+
+#Wait for user input to stop the timer
+raw_input("Please press ENTER to continue... ")
+stop_time = localtime()
+difference = mktime(stop_time) - mktime(start_time)
+
+print("Timer stopped at %s" % strftime("%X", stop_time))
+print("Total Time: %s" % difference)
+----------------------------------------------------------------------------------------------------------------------
+
+>>Output
+bin $ ./timer.py
+Timer starts at 23:04:08
+Please press ENTER to continue...
+Timer stopped at 23:04:14
+Total Time: 6.0
+
+>>Notes:
+mktime() - Function will take time object and convert into the float value and then do basic math
+import time -To import complete time package
+from time import localtime -To import any functions or objects from the package
