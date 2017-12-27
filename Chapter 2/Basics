@@ -58,6 +58,51 @@ Booleans:--
 Nothing:--
 #None
 ************************************************************************************************************************************
-
 Notes:
 You can no modify the existing string, you can create new one from the existing one.
+************************************************************************************************************************************
+Variables: define with lowerCase
+#a_word = "Amit"
+#print(a_word)
+>>Amit
+
+Note: You can reallocate variable to different data types. Eg. my_int = 0; my_int = "int" ...Here data type changed from int to string
+****************************************************************************************************************************************
+
+Collection types: Lists and Tuples
+
+List:--
+Define #list = [1, 'a', 2.0, True]
+Call #list
+Substring #list[1:3] start from 1st Index to the 3 position
+and with just in between value #list[::2] It will start from 0 Index and grab 2nd position till end of the List.
+Lenght #len(list)
+End of the list value #list[-1]
+Change the value of the variable list[1] = 2.0
+Append #list.append('Amit') OR #list += [9, 10]
+Replace #list[1:3] = ['b', 'c'] 
+Remove #list[1:5] = [] OR #list.remove(9) based on value
+To remove last item from the list #list.pop() #list.pop(0) particular index value
+
+Tuple:--
+Define #new_tuple = (a, b)
+Fetch value #new_tuple[0]
+Runtime use #"My name is %s %s" % ("Amit", "Prajapati")
+tuple of 1 item #('Amit', ) Note: #('Amit') it will create string... to define tuple you've to put ,
+
+Note: Sting is immutable and List is Muttable. List has no specific data types, you can assign Int, Float, Sting, Boolean
+any data type within one List.
+****************************************************************************************************************************************
+
+Dictionaries (dicts):-- Key Value pair {key:value}
+Define #age = {'Amit':25, 'Brother':23, 'Dad':55} OR #new_dict = dict(name='string', age=5) OR new = dict([('richard', 90), ('kevin', 160)])
+Find particular value #age['Dad']
+To add #age['Mom'] = 53 and then print #age
+Delete #del age['Amit'] Comment:del function use to delete any variable, here it will delete 'Amit' key-value pair. OR #del age Comment:delete complete dict
+You can also use pop function.
+Possible: #dict = {1:'this', 1.2:'that', 'name':'String'}
+To find only values #dict.values()
+To find only keys #dict.keys()
+items #dict.items()
+
+Note: List always in order but Dictonaries does not. It is Muttable. 
