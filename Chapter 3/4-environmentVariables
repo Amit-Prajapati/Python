@@ -1,0 +1,39 @@
+Working with Environment Variables:--
+
+$PS
+#Work with environment variable to print the current env.
+bin $ cat default-env.py
+-------------------------------------------------------------------------------------------------------------------------------
+#!/usr/local/bin/python
+import os
+
+stage = (os.getenv("STAGE") or "Devlopement" ).upper()
+output = "We're running %s" % stage
+
+if stage.startswith("PROD"):
+    output = "DANGER!!! We're running %s" % stage
+
+print(output)
+-------------------------------------------------------------------------------------------------------------------------------
+>>Output
+bin $ ./default-env.py
+We're running DEVLOPEMENT
+bin $ STAGE=staging ./default-env.py
+We're running STAGING
+bin $ STAGE=production ./default-env.py
+DANGER!!! We're running PRODUCTION
+
+
+>>Notes
+os package - To work with environment variable, we would be require os package
+stage = os.environ["STAGE"].upper() - environ is a dictionary, STAGE is a key
+  Comments: If we don't give environment variable will get key error, Environ is a dictionary if we don't give an value that does not exist then it will be a problem
+stage = (os.getenv("STAGE") or "Devlopement" ).upper() - highly recommended to use getenv value instead of environ to get rid of above error  
+  Comments: We have to give default value along with getenv value else without any env variable it will consider as NoneType and will throw below error
+  Error:
+    bin $ ./default-env.py
+    Traceback (most recent call last):
+      File "./default-env.py", line 4, in <module>
+        stage = os.getenv("STAGE").upper()
+    AttributeError: 'NoneType' object has no attribute 'upper'
+
