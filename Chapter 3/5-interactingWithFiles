@@ -1,0 +1,44 @@
+Interacting with Files:--
+
+read/write and append a file
+
+It will put an extra new line while we read a file
+-------------------------------------------------------------------------------------------------------------------------------------
+#!/usr/local/bin/python
+marvels_file = open("marvels.txt")
+for line in marvels_line:
+    print(line)
+marvels_file.close()
+-------------------------------------------------------------------------------------------------------------------------------------
+OR we can use #print(marvels_file.read()) instead of for loop to get rid of extra new line in the output
+print(marvels_file.read()) - read entire content of a file as a one string
+
+marvels_file = open("marvels.txt") - To open a file in read mode
+
+marvels_file = open("marvels.txt", "w") - To open a file in write mode
+marvels_file.write("spiderman\n") - It will replace the existing content
+
+marvels_file = open("marvels.txt", "r+") - Read and Write mode
+os.SEEK_END - basically tells to go to the EOF
+-------------------------------------------------------------------------------------------------------------------------------------
+#!/usr/local/bin/python
+import os
+marvels_file = open("marvels.txt", "r+")
+marvels_file.seek(-1, os.SEEK_END)
+marvels_file.write("\nspiderman\n")
+marvels_file.write("deadpool\n")
+marvels_file.close()
+------------------------------------------------------------------------------------------------------------------------------------
+
+marvels_file = open("marvels.txt", "a") - To append a file
+marvels_file.writelines(["hulk\n", "thor\n", "loki\n"]) - to append to the file
+
+How to get rid of calling file muliple_names times
+with keyword - will automatically take care of closing the file
+-------------------------------------------------------------------------------------------------------------------------------------
+#!/usr/local/bin/python
+
+with open("marvels.txt", "r") as marvels_file:
+    read = marvels_file.read() OR marvels_file.write("black panther\n") #have to open a file in 'a' append mode
+    print(read)
+-------------------------------------------------------------------------------------------------------------------------------------
