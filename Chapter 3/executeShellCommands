@@ -1,0 +1,104 @@
+Execute Shell Commands from Within Python :--
+
+Example 1 - 
+--------------------------------------------------------------------------------------------------------------------------------------
+bin $ cat cmd.py
+#!/usr/local/bin/python
+
+import subprocess
+
+code = subprocess.call(['ls', '-l'])
+if code == 0:
+    print(code)
+else:
+    print("Failed to execute code %i" % code)
+--------------------------------------------------------------------------------------------------------------------------------------
+Output - 
+bin $ ./cmd.py
+total 48
+-rwxr--r--. 1 lg712302 nixusers 163 Dec 31 19:34 cmd.py
+-rwxr--r--. 1 lg712302 nixusers 201 Dec 27 23:29 default-env.py
+-rwxr--r--. 1 lg712302 nixusers 312 Dec 28 00:04 files.py
+-rwxr-xr-x. 1 lg712302 nixusers 216 Dec 27 17:13 firstExercise.py
+-rwxr--r--. 1 lg712302 nixusers 800 Dec 27 22:19 functions.py
+-rwxr--r--. 1 lg712302 nixusers  65 Dec 25 22:24 hello
+-rwxr--r--. 1 lg712302 nixusers 240 Dec 27 21:34 input.py
+-rw-r--r--. 1 lg712302 nixusers  45 Dec 27 23:58 marvels.txt
+-rwxr--r--. 1 lg712302 nixusers 741 Dec 31 18:41 reverse-file.py
+-rwxr-xr-x. 1 lg712302 nixusers 307 Dec 27 20:11 secondExercise.py
+-rwxr-xr-x. 1 lg712302 nixusers 696 Dec 27 20:50 thirdExercise.py
+-rwxr--r--. 1 lg712302 nixusers 425 Dec 27 23:02 timer.py
+0
+
+Error - 
+bin $ ./cmd.py
+ls: invalid option -- 'z'
+Try 'ls --help' for more information.
+Failed to execute code 2
+--------------------------------------------------------------------------------------------------------------------------------------
+
+
+Example 2 -
+--------------------------------------------------------------------------------------------------------------------------------------
+bin $ cat cmd.py
+#!/usr/local/bin/python
+
+import subprocess
+
+output = subprocess.check_output(['ls', '-z'])
+print(output)
+--------------------------------------------------------------------------------------------------------------------------------------
+Error -
+bin $ ./cmd.py
+ls: invalid option -- 'z'
+Try 'ls --help' for more information.
+Traceback (most recent call last):
+  File "./cmd.py", line 5, in <module>
+    output = subprocess.check_output(['ls', '-z'])
+  File "/usr/lib64/python2.7/subprocess.py", line 575, in check_output
+    raise CalledProcessError(retcode, cmd, output=output)
+subprocess.CalledProcessError: Command '['ls', '-z']' returned non-zero exit status 2
+
+#output = subprocess.check_output(['ls fake.txt'])
+bin $ ./cmd.py
+Traceback (most recent call last):
+  File "./cmd.py", line 5, in <module>
+    output = subprocess.check_output(['ls fake.txt'])
+  File "/usr/lib64/python2.7/subprocess.py", line 568, in check_output
+    process = Popen(stdout=PIPE, *popenargs, **kwargs)
+  File "/usr/lib64/python2.7/subprocess.py", line 711, in __init__
+    errread, errwrite)
+  File "/usr/lib64/python2.7/subprocess.py", line 1327, in _execute_child
+    raise child_exception
+OSError: [Errno 13] Permission denied
+
+
+Example 3 - 
+--------------------------------------------------------------------------------------------------------------------------------------
+bin $ cat cmd.py
+#!/usr/local/bin/python
+
+import subprocess
+
+try:
+    output = subprocess.check_output(
+        ['ls fake.txt'],
+        stderr = subprocess.STDOUT
+        )
+except OSError as err:
+    print("Caught OSError")
+    output = err
+except subprocess.CalledProcessError as err:
+    print("Caught subprocess.CalledProcessError")
+    output = err
+print(output)
+--------------------------------------------------------------------------------------------------------------------------------------
+
+Errors handling - 
+bin $ ./cmd.py
+Caught subprocess.CalledProcessError
+Command '['ls', 'fake.txt']' returned non-zero exit status 2
+bin $ vim cmd.py
+bin $ ./cmd.py
+Caught OSError
+[Errno 13] Permission denied
