@@ -1,0 +1,85 @@
+Parsing Command Line Parameters:--
+1st arguement in any script is going to be script itself.
+
+
+Example 1 - Standard way of parsing the command line parameters
+--------------------------------------------------------------------------------------------------------------------------------------
+bin $ cat args.py
+#!/usr/local/bin/python
+
+import sys
+print("First arguement %s" % sys.argv[1])
+--------------------------------------------------------------------------------------------------------------------------------------
+IF we don't pass an arguement - 
+Error:
+bin $ ./args.py
+Traceback (most recent call last):
+  File "./args.py", line 4, in <module>
+    print("First arguement %s" % sys.argv[1])
+IndexError: list index out of range
+--------------------------------------------------------------------------------------------------------------------------------------
+
+
+Example 2 - parsing the parameters with 'argparse' package
+--------------------------------------------------------------------------------------------------------------------------------------
+#!/usr/local/bin/python
+
+import argparse 
+
+parser = argparse.ArgumentParser() #constructor function
+parser.add_argument('filename', help='the file to read') $methods attached to the class, it allows to name it
+args = parser.parse_args() 
+
+print("Argument: %s" % args)
+--------------------------------------------------------------------------------------------------------------------------------------
+Output:
+bin $ ./args.py -h
+usage: args.py [-h] filename
+
+positional arguments:
+  filename    the file to read
+
+optional arguments:
+  -h, --help  show this help message and exit
+bin $ ./args.py file
+Argument: Namespace(filename='file') #(attributes in python)
+
+
+Example 3 -
+--------------------------------------------------------------------------------------------------------------------------------------
+P.S - Write a script to reverse the content of any file. Positional Argument.
+--------------------------------------------------------------------------------------------------------------------------------------
+bin $ cat reverse-file.py
+#!/usr/local/bin/python
+
+import argparse
+
+parser = argparse.ArgumentParser(description='Read a file in reverse')
+parser.add_argument('filename', help='the file to read')
+parser.add_argument('--limit', '-l', type=int, help='the number of lines to read')
+parser.add_argument('--version', '-v', action='version', version='%(prog)s 1.0')
+
+args = parser.parse_args()
+
+print("Filename: %s" % args.filename)
+
+with open(args.filename) as f:
+    lines = f.readlines()
+    lines.reverse()
+
+    if args.limit:
+        lines = lines[:args.limit]
+
+    for line in lines:
+        print(line.strip()[::-1])
+--------------------------------------------------------------------------------------------------------------------------------------
+Output -
+bin $ ./reverse-file.py ./reverse-file.py --limit 5
+Filename: ./reverse-file.py
+)]1-::[)(pirts.enil(tnirp
+:senil ni enil rof
+
+]timil.sgra:[senil = senil
+:timil.sgra fi
+bin $ ./reverse-file.py ./reverse-file.py --limit 5 --version
+reverse-file.py 1.0
