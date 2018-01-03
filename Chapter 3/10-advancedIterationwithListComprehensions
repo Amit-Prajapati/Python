@@ -2,3 +2,46 @@ Advanced Iteration with List Comprehensions :--
 
 functional programming technique - apply function to iterate and generate entire new list
 search dictonary file on your system and gives you whatever passed to it.
+
+Example 1- 
+----------------------------------------------------------------------------------------------------------------------------------------
+bin $ cat contains.py
+#!/usr/local/bin/python
+
+import argparse
+
+parser = argparse.ArgumentParser(description='search for words including partial word')
+parser.add_argument('snippet', help='partial(or complete) string to search for in the words file')
+
+args = parser.parse_args()
+snippet = args.snippet.lower()
+
+words = open('/usr/share/dict/words').readlines()
+matches = []
+
+for word in words:
+    if snippet in word.lower():
+        matches.append(word)
+
+print(matches)
+----------------------------------------------------------------------------------------------------------------------------------------
+
+Output -
+bin $ ./contains.py samit
+['Assamites\n', 'balsamitic\n', 'balsamiticness\n', 'samite\n', 'samites\n', 'samiti\n']
+
+
+Can replace above code - 
+#matches = []
+#for word in words:
+#    if snippet in word.lower():
+#        matches.append(word)
+
+with below one line code -
+print([word.strip() for word in words if snippet in word.lower()])
+----------------------------------------------------------------------------------------------------------------------------------------
+
+Example 2
+
+numbers = [1, 2, 3, 4]
+print([x * x for x in numbers])
