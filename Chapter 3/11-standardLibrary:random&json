@@ -1,0 +1,34 @@
+Standard Library: random & json:--
+
+random and json package example -
+
+P.S Write a python script to generate dummy 100 receipt files which should have random key:value json content
+where key=random word from /usr/share/dict/words and value=random $ value between 1-100
+----------------------------------------------------------------------------------------------------------------------------------------
+receipts $ cat gen_receipts.py
+#!/usr/local/bin/python
+
+import random
+import os
+import json
+
+count = os.getenv("COUNT_VALUE") or 100
+words = [word.strip() for word in open('/usr/share/dict/words').readlines()] #string list from dictonary words
+
+for identifier in range(count):
+    amount = random.uniform(1.0, 100.0)
+    content = {
+        'topic': random.choice(words),
+        'value': "%.2f" % amount
+    }
+    with open('./new/receipt-%s.json' % identifier, 'w') as f:
+        json.dump(content, f)
+----------------------------------------------------------------------------------------------------------------------------------------
+Output -
+we should have 100 random receipt files in our new directory.
+
+Notes -
+random.uniform(a, b) - takes float value as input and generate number in between a,b value
+random.choice(seq) - seq can be tuples or list and function will select random string from it
+range() = starts from 0 to upper limit
+json.dump(json obj, file) - it will dump the json object into the specified file
