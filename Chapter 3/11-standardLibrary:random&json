@@ -12,7 +12,7 @@ import random
 import os
 import json
 
-count = os.getenv("COUNT_VALUE") or 100
+count = int(os.getenv("COUNT_VALUE") or 100)
 words = [word.strip() for word in open('/usr/share/dict/words').readlines()] #string list from dictonary words
 
 for identifier in range(count):
@@ -25,7 +25,8 @@ for identifier in range(count):
         json.dump(content, f)
 ----------------------------------------------------------------------------------------------------------------------------------------
 Output -
-we should have 100 random receipt files in our new directory.
+we should have 100 random receipt files in our new directory OR as per the COUNT_VALUE.
+#receipts $ COUNT_VALUE=5 ./gen_receipts.py amit
 
 Notes -
 random.uniform(a, b) - takes float value as input and generate number in between a,b value
