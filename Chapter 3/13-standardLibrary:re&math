@@ -1,0 +1,50 @@
+Standard Library: re & math:--
+Learn some of the more common math functions and how to potentially use regular expressions in your Python.
+
+P.S - Same program as previous topic with subtotal of even number files.
+----------------------------------------------------------------------------------------------------------------------------------------
+receipts $ cat process_receipts.py
+#!/usr/local/bin/python
+
+import shutil
+import os
+import glob
+import json
+import re
+import math
+
+try:
+    os.mkdir("./processed")
+except OSError:
+    print("'processed' directory already exist")
+
+#Get a list of receipts
+#receipts = glob.glob("./new/receipt-[0-9]*.json")
+receipts = [f for f in glob.iglob("./new/receipt-[0-9]*.json") if re.match("./new/receipt-[0-9]*[02468].json", f)]
+
+subtotal = 0.0
+
+for path in receipts:
+    with open(path) as f:
+        content = json.load(f)
+        subtotal += float(content['value'])
+#    name = path.split("/")[-1]
+#    destination = "./processed/%s" % name
+    destination = path.replace("new", "processed")
+    shutil.move(path, destination)
+    print("Moved %s to %s" % (path, destination))
+
+print("Receipt subtotal: $%s" % round(subtotal, 2))
+
+#Iterate over the receipts
+    #read content and tally a subtotal
+    #mv the file to the processed directory
+    #print that we processed the file
+
+#Print the total of all processed receipts
+----------------------------------------------------------------------------------------------------------------------------------------
+iterator in python have next function which points to the next index, you can pass iterator in for loop
+re.match(pattern, variable_string) - pattern within match, * different in re - 0 to infinite numbers, if we have billions of files then that would get cover
+math.ceil() - it will give upper positive integer value, eg. 1.1 => 2.0
+math.floor() - it will give lower positive integer value, eg. 1.1 => 1.0
+round(variable, how many decimel point) - to round off the value
