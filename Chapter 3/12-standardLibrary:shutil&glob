@@ -1,2 +1,60 @@
 Standard Library: shutil & glob :--
 
+Learn to search files by name using (glob) patterns and
+find replacements in the standard library for common UNIX tools like mv, mkdir, cp, and rm.
+
+P.S - Continuing previous chapter and find subtotal of all the receipts under new directory.
+-----------------------------------------------------------------------------------------------------------------------------------------
+receipts $ cat process_receipts.py
+#!/usr/local/bin/python
+
+import shutil
+import os
+import glob
+import json
+
+#To make sure 'processed directory does not exist and if so then we'll get a proper error'
+try:
+    os.mkdir("./processed")
+except OSError:
+    print("'processed' directory already exist")
+
+#Get a list of receipts
+receipts = glob.glob("./new/receipt-[0-9]*.json") #it will catch all the files with specific name pattern
+
+subtotal = 0.0
+
+for path in receipts: #to select one file from all the selected json files
+    with open(path) as f:
+        content = json.load(f) #load the json content into the variable
+        subtotal += float(content['value']) #catch the value 
+    name = path.split("/")[-1] #grab exact name of the file,[-1] is to select last string from split function
+    destination = "./processed/%s" % name
+    shutil.move(path, destination) #same as mv command in linux
+    print("Moved %s to %s" % (path, destination))
+
+print("Receipt subtotal: $%.2f" % subtotal)
+
+#Steps to follow while writing an initial script
+#Iterate over the receipts
+    #read content and tally a subtotal
+    #mv the file to the processed directory
+    #print that we processed the file
+
+#Print the total of all processed receipts
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+>>Output -
+receipts $ ./process_receipts.py
+'processed' directory already exist
+Moved ./new/receipt-3.json to ./processed/receipt-3.json
+Moved ./new/receipt-2.json to ./processed/receipt-2.json
+Moved ./new/receipt-4.json to ./processed/receipt-4.json
+Moved ./new/receipt-1.json to ./processed/receipt-1.json
+Moved ./new/receipt-0.json to ./processed/receipt-0.json
+Receipt subtotal: $196.49
+
+If no file is present under ./new/
+receipts $ ./process_receipts.py
+'processed' directory already exist
+Receipt subtotal: $0.00
