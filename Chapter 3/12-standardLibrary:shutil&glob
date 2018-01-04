@@ -26,7 +26,7 @@ subtotal = 0.0
 
 for path in receipts: #to select one file from all the selected json files
     with open(path) as f:
-        content = json.load(f) #load the json content into the variable
+        content = json.load(f) #load the json content into a variable
         subtotal += float(content['value']) #catch the value 
     name = path.split("/")[-1] #grab exact name of the file,[-1] is to select last string from split function
     destination = "./processed/%s" % name
