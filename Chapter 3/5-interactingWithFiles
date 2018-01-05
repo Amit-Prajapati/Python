@@ -6,7 +6,7 @@ It will put an extra new line while we read a file
 -------------------------------------------------------------------------------------------------------------------------------------
 #!/usr/local/bin/python
 marvels_file = open("marvels.txt")
-for line in marvels_line:
+for line in marvels_file:
     print(line)
 marvels_file.close()
 -------------------------------------------------------------------------------------------------------------------------------------
