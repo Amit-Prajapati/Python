@@ -1,0 +1,76 @@
+>>P.S - 
+Write a script that prompts the user for:
+
+A file_name where it should write the content.
+The content that should go in the file. The script should keep accepting lines of text until the user enters an empty line.
+After the user enters an empty line, write all of the lines to the file and end the script.
+
+Possible solution 1:
+---------------------------------------------------------------------------------------------------------------------------------------
+#!/usr/local/bin/python
+
+file_name = raw_input("Enter a file name ").lower().strip()
+line = []
+print("Enter content, empty line will write content to the file and exit.")
+with open(file_name, "w") as f:
+    eof = False
+    lines = []
+
+    while not eof:
+        line = raw_input()
+        if line.strip():
+            lines.append("%s\n" % line)
+        else:
+            eof = True
+    f.writelines(lines)
+    print("Lines written to %s file" % file_name)
+---------------------------------------------------------------------------------------------------------------------------------------
+>> Output - 
+chapter3 $ ./thirdExercise.py
+Enter a file name test
+Enter content, empty line will write content to the file and exit.
+a
+b
+c
+d
+e
+
+Lines written to test file
+chapter3 $ cat test
+a
+b
+c
+d
+e
+chapter3 $
+---------------------------------------------------------------------------------------------------------------------------------------
+
+Possible solution 2:
+---------------------------------------------------------------------------------------------------------------------------------------
+#!/bin/python
+
+def get_file_name(reprompt=False):
+    if reprompt:
+        print("Please enter a file name.")
+
+    file_name = raw_input("Destination file name: ").strip()
+    return file_name or get_file_name(True)
+
+file_name = get_file_name()
+
+print("Please enter your content. Entering an empty line will write the content to %s:\n" % file_name)
+
+with open(file_name, 'w') as f:
+    eof = False
+    lines = []
+
+    while not eof:
+        line = raw_input()
+        if line.strip():
+            lines.append("%s\n" % line)
+        else:
+            eof = True
+
+    f.writelines(lines)
+    print("Lines written to %s" % file_name)
+---------------------------------------------------------------------------------------------------------------------------------------
