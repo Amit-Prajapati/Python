@@ -29,3 +29,9 @@ except IOError as err:
 else:
     print(line)
 --------------------------------------------------------------------------------------------------------------------------------------
+>>Output -
+chapter3 $ ./fourthExercise-sample.py fourthExercise-sample.py 13
+User has selected line no 13 from fourthExercise-sample.py file
+    lines = open(args.file_name, "r").readlines()
+
+chapter3 $
