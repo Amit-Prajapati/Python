@@ -7,6 +7,50 @@ Make sure that you handle the following error cases by presenting the user with 
 
 The file doesn’t exist.
 The file doesn’t contain the line_number specified (file is too short).
+
+Possible solution 1:
+--------------------------------------------------------------------------------------------------------------------------------------
+#!/usr/local/bin/python
+
+def get_file_name(reprompt = False):
+    if reprompt:
+        print("Enter a file name")
+
+    file_name = raw_input("Destination file name: ").strip()
+    return(file_name) or get_file_name(True)
+
+def get_line_no(reprompt = False):
+    if reprompt:
+        print("Select a line from %s" % file_name)
+
+    line_no = raw_input("Enter a line number: ").strip()
+    return(line_no) or get_line_no(True)
+
+file_name = get_file_name()
+line_no = get_line_no()
+
+print("User has selected line no %s from %s file" % (int(line_no), file_name))
+
+try:
+    lines = open(file_name).readlines()
+    line = lines[int(line_no) - 1]
+except IndexError as err:
+    print("Index Error: %s" % err)
+except IOError:
+    print("Error: File does not exist.")
+else:
+    print(line)
+--------------------------------------------------------------------------------------------------------------------------------------
+>>Output -
+chapter3 $ ./fourthExercise.py
+Destination file name: absajh
+Enter a line number: 2
+User has selected line no 2 from absajh file
+Error: File does not exist.
+chapter3 $
+--------------------------------------------------------------------------------------------------------------------------------------
+
+Possible solution 2:
 --------------------------------------------------------------------------------------------------------------------------------------
 #!/usr/local/bin/python
 
