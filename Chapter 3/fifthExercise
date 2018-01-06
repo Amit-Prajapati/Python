@@ -63,7 +63,9 @@ User wants to kill process running on port 5500
 Killed process: 17565
 
 >>Notes - 
-output.splitlines(): to split the lines of an object
+output.splitlines(): to split the lines of a string
 
-subprocess.check_output(): If the return code was non-zero it raises a CalledProcessError.
+subprocess.call(): will return int object
+subprocess.check_output(): return its output as a byte string.
+If the return code was non-zero it raises a CalledProcessError.
  The CalledProcessError object will have the return code in the returncode attribute and any output in the output attribute.
