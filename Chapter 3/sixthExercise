@@ -1,0 +1,47 @@
+>>P.S -
+You’ve now written a few scripts that handle errors, but when the failures happen the status code returned is still a success (0).
+Improve your script to kill processes by exiting with an error status code when there isn’t a process to kill.
+
+Extended fifthExercise script:
+----------------------------------------------------------------------------------------------------------------------------------------
+#!/usr/local/bin/python
+
+import os
+import argparse
+import subprocess
+import sys
+
+parser = argparse.ArgumentParser()
+parser.add_argument("port_no", type=int, help="Enter a port number")
+
+port = parser.parse_args().port_no
+print("User wants to kill process running on port %s" % port)
+
+try:
+    output = subprocess.check_output(['lsof', '-n', "-i4TCP:%s" % port])
+except subprocess.CalledProcessError:
+    print("No process running on %s port" % port)
+    exit(1)
+else:
+    listening = None
+
+    for line in output.splitlines():
+        if "LISTEN" in line:
+            listening = line
+            break
+
+    if listening:
+        # PID is the second column in the output
+        pid = int(listening.split()[1])
+        os.kill(pid, 9)
+        print("Killed process: %s" % pid)
+    else:
+        print("No process listening on %s port" % port)
+        exit(1)
+----------------------------------------------------------------------------------------------------------------------------------------
+>>Output - 
+chapter3 $ ./fifthExercise.py 5500
+User wants to kill process running on port 5500
+No process running on 5500 port
+chapter3 $ echo $?
+1
