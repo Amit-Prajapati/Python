@@ -54,3 +54,5 @@ unit.startswith("i") - to check staring character of any variable
 def - is a keyword to define any function
   example: def gather_info(): OR def calculate(weight, height, unit="imperial"):
 call function - calculate(weight, height) by keeping parameters in order OR calculate(weight, unit="metric", height=height) with random keyword definition.
+you can't use a keyword argument and then follow it with positional arguments.
+It is valid to use positional arguments followed by keyword arguments. It is also valid to use all keywords or all positional arguments.
