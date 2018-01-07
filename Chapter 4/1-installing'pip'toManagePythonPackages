@@ -1,0 +1,98 @@
+ Installing 'pip' to Manage Python Packages:--
+ pip is a setup tool.
+ 
+ access to the large package
+ egg, real -
+ 
+ 
+#sudo yum install epel-release -y
+#sudo yum update -y
+#sudo yum upgrade python-setuptools -y
+#sudo yum install python-pip python-wheel -y
+#pip -V
+#sudo pip install --upgrade pip
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+Installing Third-Party Packages Using 'pip':--
+
+#pip list #Comment: it will shows list of package currently  installed on python
+#pip install --user boto3 #Comment: It will install boto3 package for particular user
+#pip list --user --format=columns #Comment: It shows sublist, packages installed on local user directory
+
+Another use case:
+#pip freeze --user | grep boto3 > requirement.txt
+
+To install packages using file:
+#pip install --user -r requirements.txt
+
+#To uninstall packages and with requirements.txt you can uninstall multiple packages
+#pip uninstall boto3
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+Virtualenv:--
+
+Virtualenv is python is a sandbox env.
+Create an virtaulenv and install different version packages as per the requirement and you don't have to worry about the system python.
+
+#which virtualenv
+#mkdir venvs
+#virtualenv venvs/experiment #Comment: It will set python executable in venvs/experiment directory
+#source venvs/experiment/bin/activate #Comment: Shows which virtualenv we are working on and now we can install packages as per our requirement
+#deactivate #Comment: to deactivate current virtualenv
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+Using Third-Party Code in Your Scripts:--
+
+We are going to write a code that will utilizes third party packages.
+Requests package: http request require this package in python
+#pip install requests
+
+/usr/local/bin/env python #Comment: Sha-bang in virtual env
+
+Example 1:
+-------------------------------------------------
+(experiment) scripts $ cat bin/weather
+#!/usr/local/bin/env python
+
+import requests
+
+print(requests.__file__)
+-------------------------------------------------
+>>Output - /pwcloud/users/lg712302/scripts/venvs/experiment/bin/python
+-------------------------------------------------
+
+Example 2: Interact with 3rd party code(API call) in oyur script, Written a script to check weather status based on zip code.
+-------------------------------------------------
+#!/usr/local/bin/env python
+
+import requests
+from argparse import ArgumentParser
+import os
+import sys
+
+parser = ArgumentParser(description='Get the current weather information')
+parser.add_argument('zip', help='zip/postal code to find weather information')
+parser.add_argument('--country', default='india', help='country zip/postal code belongs to, default is "India"')
+
+args = parser.parse_args()
+
+url = "http://api.openweathermap.org/data/2.5/weather?zip=%s,%s&APPID=%s" % (
+        args.zip,
+        args.country,
+        os.getenv("OWM_API_KEY"))
+
+res = requests.get(url)
+
+if res.status_code != 200:
+    print("Error talking to weather provider: %s" % res.status_code)
+    sys.exit(1)
+
+print(res.json())
+-------------------------------------------------
+>>Output - 
+
+(experiment) scripts $ python bin/weather 400068
+Error talking to weather provider: 401 #Comment: because API key is still not active.
