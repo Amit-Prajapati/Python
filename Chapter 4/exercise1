@@ -1,0 +1,23 @@
+P.S - 
+Utilize pip to install the psycopg2 library (a PostgreSQL database library). Be sure to first create and activate a virtualenv before installing the package.
+
+Followed below steps:
+----------------------------------------------------------------------------------------------------------------------------------------
+scripts $ virtualenv venvs/exercise1
+New python executable in /pwcloud/users/lg712302/scripts/venvs/exercise1/bin/python2
+Also creating executable in /pwcloud/users/lg712302/scripts/venvs/exercise1/bin/python
+Installing setuptools, pip, wheel...done.
+scripts $ source venvs/exercise1/bin/activate
+(exercise1) scripts $ pip install psycopg2
+Collecting psycopg2
+  Downloading psycopg2-2.7.3.2-cp27-cp27mu-manylinux1_x86_64.whl (2.7MB)
+    100% |████████████████████████████████| 2.7MB 438kB/s
+Installing collected packages: psycopg2
+Successfully installed psycopg2-2.7.3.2
+(exercise1) scripts $ pip list
+DEPRECATION: The default format will switch to columns in the future. You can use --format=(legacy|columns) (or define a format=(legacy|columns) in your pip.conf under the [list] section) to disable this warning.
+pip (9.0.1)
+psycopg2 (2.7.3.2)
+setuptools (38.4.0)
+wheel (0.30.0)
+(exercise1) scripts $ deactivate
