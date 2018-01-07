@@ -1,10 +1,6 @@
  Installing 'pip' to Manage Python Packages:--
  pip is a setup tool.
  
- access to the large package
- egg, real -
- 
- 
 #sudo yum install epel-release -y
 #sudo yum update -y
 #sudo yum upgrade python-setuptools -y
