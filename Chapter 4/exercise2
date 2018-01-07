@@ -1,0 +1,54 @@
+P.S -
+Make sure that you have the requests package installed. Now, write a script that does the following:
+
+Accepts a URL and destination file name from the user calling the script.
+Utilizes requests to make an HTTP request to the given URL.
+Has an optional flag to state whether or not the response should be JSON or HTML (HTML by default).
+Writes the contents of the page out to the destination.
+Note: You’ll want to use the text attribute to get the HTML. To write this content on Python 2, you’ll need to convert the unicode object to a string by using res.text.encode("UTF-8").
+
+------------------------------------------------------------------------------------------------------------------------------------
+#!/usr/local/bin/env python
+
+import requests
+from argparse import ArgumentParser
+import sys
+
+parser = ArgumentParser(description='description=Get URL content in a file')
+parser.add_argument('url', help='URL to store the content of')
+parser.add_argument('filename', help='destination file name to store url content')
+parser.add_argument('--content_type', '-c',
+                    default='html',
+                    choices=['html', 'json'],
+                    help='content-type of the URL being requested "default is html"')
+
+args = parser.parse_args()
+
+res = requests.get(args.url)
+
+if res.status_code >= 400:
+    print("Erro code received: %s" % res.status_code)
+    sys.exit(1)
+
+if args.content_type == 'json':
+    try:
+        content = res.json()
+    except:
+        print("Content is not JSON")
+        sys.exit(1)
+else:
+    content = res.text
+
+with open(args.filename, "w") as f:
+    f.write(content.encode("UTF-8"))
+    print("Content written to %s" % args.filename)
+
+#Accepts url and destination file name along with optional response format HTML/JSON 'default is HTML' in argument
+#Make http call through requests package
+#Write content to the destination file
+------------------------------------------------------------------------------------------------------------------------------------
+>>Output - 
+(exercise2) scripts $ python bin/exercise2.py http://www.google.com google.txt -c=json
+Content is not JSON
+(exercise2) scripts $ python bin/exercise2.py http://www.google.com google.txt
+Content written to google.txt
