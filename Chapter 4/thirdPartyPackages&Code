@@ -38,6 +38,8 @@ Create an virtaulenv and install different version packages as per the requireme
 #source venvs/experiment/bin/activate #Comment: Shows which virtualenv we are working on and now we can install packages as per our requirement
 #deactivate #Comment: to deactivate current virtualenv
 
+To intall latest python version without affecting existing python-libraries.
+https://danieleriksson.net/2017/02/08/how-to-install-latest-python-on-centos/
 ----------------------------------------------------------------------------------------------------------------------------------------
 
 Using Third-Party Code in Your Scripts:--
