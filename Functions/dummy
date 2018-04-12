@@ -1,3 +1,4 @@
+#fileName=ops-ebs-snapshots-delete-invoke.py
 #ops-delete-ebs-snaps
 #Invoke function to delete individual snapshots.
 #Python 2.7
