@@ -1,46 +1,151 @@
-#!/bin/bash
-# rolloutFunction.sh
-# Rollout EBS Backup to all VPCs
-# The last parameter [water,us-prod,eu-prod,...] is the profile-name, use the same name and you are able to execute this without any changes
-# please refer to https://github.build.ge.com/pw-cloud/pw-scripts and check on lambdadeploy, ld is actually an alias in ~/.bash_profile which
-# looks like the following 
-# alias ld='function _ld(){ export AWS_PROFILE=${@:$#}; lambdadeploy ${*%${!#}}; };_ld'
+#!/bin/env python
+# ops-ebs-snapshots.py
+#==============================================================================
+#title           : ops-ebs-snapshots.py
+#description     : Collecting all instances which should be backed up and invoking ops-ebs-snapshot-invoke for each
+#author          : Andreas Pfister (105026584)
+#orig revision   : 2017-03-10
+#version         : 1.0
+#usage           : when run locally there will be no invocation of ops-ebs-snapshot-invoke.py happen, otherwise this function is supposed to run in a Lambda function in AWS
+#notes           : 
 
-case "$OSTYPE" in
-  linux*)   
-	shopt -s expand_aliases
-	source ~/.bashrc ;;
-  darwin*|cygwin*)
-	shopt -s expand_aliases
-	source ~/.bash_profile ;;
-  *)        
-	echo "unknown: $OSTYPE" 
-	exit ;;
-esac
+# History:
+#   Replaced old ops-ebs-snashots.py with some additional logic to gain instances in a different way
+#   Including check for scheduled shutdowns
+#   Improving output for better overview of what is going to be backed up
 
-echo "Processing Water VPC"
-ld updateCode=y water
-echo ""
-echo "Processing US Prod VPC"
-ld updateCode=y us-prod
-echo ""
-echo "Processing EU Prod VPC"
-ld updateCode=y eu-prod
-echo ""
-echo "Processing Power Services VPC"
-ld updateCode=y power-services
-echo ""
-echo "Processing Primavera VPC"
-ld updateCode=y primavera
-echo ""
-echo "Processing US Pre Prod VPC"
-ld updateCode=y us-pre-prod
-echo ""
-echo "Processing EU Pre Prod VPC"
-ld updateCode=y eu-pre-prod
-echo ""
-echo "Processing Datalake VPC"
-ld updateCode=y datalake
-echo ""
-echo "Processing Dataanalytics VPC"
-ld updateCode=y analytics
+#python_version  : 2.7.10  
+#==============================================================================
+
+import logging
+import boto3
+import time
+import datetime
+import json
+import re
+import sys
+import os
+
+logging.basicConfig()
+log = logging.getLogger()
+log.setLevel(logging.INFO)
+
+# boto3 in INFO mode outputs the payloads, so it is 'too much information'
+logging.getLogger("boto3").setLevel(logging.ERROR)
+logging.getLogger("botocore").setLevel(logging.ERROR)
+
+
+ec2           = boto3.resource('ec2')
+client        = boto3.client('ec2')
+client_lambda = boto3.client('lambda')
+accountName   = os.getenv('ACCOUNT_NAME', 'NOT_SET')
+
+def lambda_handler(event, context):
+    retrivedInstances = retrieveInstances()
+    count = 0
+    if event == None:
+        log.debug( "We are running locally, not invoking Lambda function" )
+    log.info( "Running through " + str(len(retrivedInstances)) + " instances" )
+    for instance in retrivedInstances:
+        instanceID = instance['InstanceId']
+        jsonString = ''
+        jsonStringTags = ''
+        
+        if 'Tags' not in instance:
+            log.info( "Have not found Tag Key in dict" )
+            log.debug( str(instance) )
+            continue
+
+        for tag in instance['Tags']:
+            if tag['Key'].lower() in ['uai','name','assetid','app','role','env']:
+                if jsonStringTags != '':
+                    jsonStringTags += ','
+                jsonStringTags += '{ "Key": "'+ tag['Key'] +'", "Value": "' + tag['Value'] + '"}'
+
+        for devices in instance['BlockDeviceMappings']:
+            if devices.get('Ebs', None) is None:
+                continue
+            if jsonString != '':
+                jsonString += ','
+            jsonString += '{ "VolumeId": "' + devices["Ebs"]["VolumeId"] + '", "InstanceId": "' + instanceID + '", "DeviceName": "' + devices["DeviceName"] + '"}'
+        
+        if event != None:
+            client_lambda.invoke(
+                FunctionName='ops-ebs-snapshot-invoke',
+                InvocationType='Event',
+                LogType='None',
+                Payload='{"Volumes": [' + jsonString + '], "Tags": [' + jsonStringTags + ']}'
+            )
+            count += 1
+            log.info( '****** Iteration invoked ops-ebs-snapshot-invoke %d for instance %s ******' % (count, instanceID) )
+        
+        
+    print 'End'
+
+
+def retrieveInstances():
+    log.info('Retrieving ec2 Instances...')
+    reservations = client.describe_instances().get('Reservations', [])
+    log.info( "Found " + str(len(reservations)) + " instances, working through ..." )
+    returnList = []
+    autoscalingCounter = 0
+    backupCounter = 0
+    scheduledCounter = 0
+    runningCounter = 0
+    missingTagsCounter = 0
+    for reservation in reservations:
+        for instance in reservation['Instances']:
+            autoscaling = False
+            backupSetting = False
+            scheduled = False
+            prod = "821735935111" in accountName #take everything as prod in Primavera Account
+            running = instance['State']['Name'] == 'running'
+            if running:
+                runningCounter += 1
+            # check if tags are set
+            if 'Tags' in instance:
+                for tag in instance['Tags']:
+                    #check for autoscaling instance
+                    if tag['Key'] == 'aws:autoscaling:groupName':
+                        autoscaling = True
+                        autoscalingCounter += 1
+                    #check for backup Tag
+                    if tag['Key'].lower() == 'backup':
+                        if tag['Value'].lower() in ['on']:
+                            backupSetting = True
+                            backupCounter += 1
+                    # check if a schedule is set
+                    if tag['Key'].lower() == 'schedule':
+                        if re.search( r'^U[A-Z]{,1}[0-9]{2}D[0-9]{2}-[5,7]+$', tag['Value'], re.M|re.I):
+                            scheduled = True
+                            scheduledCounter += 1
+
+                    # check if its a prod environment
+                    if tag['Key'].lower() == 'env':
+                        if tag['Value'].lower() in ['prd', 'prod']:
+                            prod = True
+                    # check if its a spacial case to take backup
+                    if tag['Key'].lower() == 'backup_case':
+                        if tag['Value'].lower() in ['special']:
+                            prod = True
+            else:
+                missingTagsCounter += 1
+            
+            # handle different scenarios to build the final list
+            if prod:
+                if running and autoscaling == False:
+                    returnList.append(instance)
+                elif autoscaling and backupSetting:
+                    returnList.append(instance)
+                elif running == False and scheduled:
+                    returnList.append(instance)
+                else:
+                    log.debug( 'Skipping instance ' + instance['InstanceId'] + ' ( State: ' + instance['State']['Name'] + ', Autoscaling: ' + str(autoscaling) + ', Scheduled: ' + str(scheduled) + ', Backup Explicit: ' + str(backupSetting) + ' ) ' )
+            else:
+                log.debug( 'Skipping instance ' + instance['InstanceId'] + ' ( State: ' + instance['State']['Name'] + ', Autoscaling: ' + str(autoscaling) + ', Scheduled: ' + str(scheduled) + ', Backup Explicit: ' + str(backupSetting) + ' ) ' )
+
+    log.info( "We have\n" + str(runningCounter) + " running instances,\n" + str(autoscalingCounter) + " instances are running through an ASG,\n" + str(backupCounter) + " instances are having backup enforced,\n" + str(scheduledCounter) + " instances having a schedule assigned,\n" + str(missingTagsCounter) + " instances are missing all the Tags" )
+    return returnList
+
+if __name__ == "__main__":
+    lambda_handler(None, None)
