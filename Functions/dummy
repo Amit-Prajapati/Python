@@ -1,49 +1,160 @@
-#fileName=ops-ebs-snapshots-delete-invoke.py
-#ops-delete-ebs-snaps
-#Invoke function to delete individual snapshots.
-#Python 2.7
-#Author: Amit Prajapati
-#Note: Do not remove any comments and all commands in comment are specified for future troubleshooting
+#!/bin/env python
 
+#==============================================================================
+#title           : ops-ebs-snapshots-invoke.py
+#description     : This function will get fired through Lambda from ops-ebs-snapshots
+#author          : Amit Prajapati
+#orig revision   : 2017-03-10
+#version         : 1.0
+#usage           : used through Lambda - when used locally you can provide parameters to simulate a backup
+#notes           : 
+
+# History:
+#   Replaced old ops-ebs-snashots-invoke.py 
+#   Improving output for better overview of what is going to be backed up
+
+#python_version  : 2.7.10  
+#==============================================================================
+
+import logging
 import boto3
 import time
 import datetime
+import copy
 import os
-import sys
 from random import randint
+logging.basicConfig()
+log = logging.getLogger()
+log.setLevel(logging.INFO)
 
+# boto3 in INFO mode outputs the payloads, so it is 'too much information'
+logging.getLogger("boto3").setLevel(logging.ERROR)
+logging.getLogger("botocore").setLevel(logging.ERROR)
+
+retentionPeriod        = os.getenv('RETENTION_PERIOD', 35)
+retentionPeriodNonProd = os.getenv('RETENTION_NON_PROD_PERIOD', 2)
 notificationARN        = os.getenv('SNS_TOPIC', '')
 queueURL               = os.getenv('SQS_URL', '')
 accountName            = os.getenv('ACCOUNT_NAME', 'NOT_SET')
-retentionPeriod        = os.getenv('RETENTION_PERIOD', 35)
-retentionPeriodNonProd = os.getenv('RETENTION_NON_PROD_PERIOD', 2)
 regionFromSQSURL       = queueURL.split(".")[1]
 ec2                    = boto3.resource('ec2')
-client                 = boto3.client('ec2')
+ec2Client              = boto3.client('ec2')
 client_lambda          = boto3.client('lambda')
 sns                    = boto3.resource('sns')
 snsclient              = boto3.client('sns')
 sqsclient              = boto3.client('sqs', region_name=regionFromSQSURL)
 boto_session           = boto3.session.Session()
 current_region         = boto_session.region_name
+today_date             = time.strftime('%d-%m-%Y')
+todayDate              = datetime.date.today()
+globalError            = ''
 
 '''
-    Posts a new message to a SQS queue which will be
-    further used for digest notifications
+    Function to add tags to a specific snapshot
+    returns True if everything went well
 '''
+def applyTags(snapshot, instanceTags, volName, retentionToUse):
+    global globalError
+    #Add tags to Snapshot
+    # get the date X days in the future
+    delete_date = datetime.date.today() + datetime.timedelta(days=int(retentionToUse))
+    # format the date as DD-MM-YYYY
+    delete_fmt = delete_date.strftime('%d-%m-%Y')
+    time.sleep(randint(2,20))
+    max_retries = 15
+    iteration = 1
+    localInstanceTags = copy.deepcopy(instanceTags)
+
+    for tag in localInstanceTags:
+        if tag['Key'].lower() == 'name':
+            tag['Value'] = tag['Value'] + ' - ' + volName
+
+    while max_retries >= iteration:
+        try:
+            snapshotTags = [
+                {'Key': 'Date_created', 'Value': today_date},
+                {'Key': 'retention_days', 'Value': str(retentionToUse)},
+                {'Key': 'DeleteAfter', 'Value': delete_fmt}
+            ]
+            snapshotTags.extend(localInstanceTags)
+            tags = snapshot.create_tags(DryRun=False, Tags=snapshotTags)
+            if iteration > 1:
+                log.info('finally suceeded to add tags')
+            return True
+        except Exception as whatsWrong:
+            iteration += 1
+            sleepTime = randint(iteration, 3 * iteration)
+            log.error('adding tags to snapshot errored out, retry (' + str(iteration) + ') ... sleeping for ' + str(sleepTime) + ' seconds')
+            log.error(str(whatsWrong))
+            globalError += '\n' + str(whatsWrong)
+            time.sleep(sleepTime)
+        if max_retries <= iteration:
+            log.error('Was not able to add tags to snapshot')
+            return False
 
 
-def postToSQSQueue(message, details, status, retentionDays):
+'''
+  returns True if a snapshot is already underway
+  returns False if the creation failed
+  returns the snap-id if creation got initiated probably
+  returns 'errorstate' if the Volume is in error state
+'''
+def createSnapshot(volume, volumeName, instanceId, description):
+    global globalError
+    max_retries = 15
+    iteration = 1
+    while max_retries >= iteration:
+        time.sleep(randint(4,12))
+        try:
+            snapshot = ec2.create_snapshot(VolumeId=volume, Description=description)
+            if iteration > 1:
+                log.info('Snapshot creation for ' + volume + " finally succeeded")
+            return snapshot
+        except Exception as whatsWrong:
+            iteration += 1
+            if 'Request limit exceeded'.lower() in str(whatsWrong).lower():
+                log.error('Snapshot creation for ' + volume + " failed: " + str(whatsWrong) + " - initiating retry (" + str(iteration) + ")")
+                if 'reached max retries'.lower() in str(whatsWrong).lower():
+                    time.sleep(randint(2,8))
+            elif 'SnapshotLimitExceeded'.lower() in str(whatsWrong).lower():
+                log.error('Snapshot creation already ongoing for ' + volume)
+                return True
+            elif 'IncorrectState'.lower() in str(whatsWrong).lower():
+                log.error('Snapshot creation for ' + volume + " failed: " + str(whatsWrong))
+                if "'error'".lower() in str(whatsWrong).lower():
+                    return 'errorstate'
+            else:
+                log.error('Snapshot creation for ' + volume + " failed: " + str(whatsWrong))
+                return False
+        if max_retries <= iteration:
+            globalError += '\n' + str(whatsWrong)
+            return False
+
+'''
+    Send SNS message to notificationARN provided through environment parameters
+'''
+def postToSNSTopic(subject, message):
+    return snsclient.publish(
+        TargetArn=notificationARN,
+        Message=str(message),
+        Subject='Error in snapshot creation ' + subject,
+        MessageStructure='string'
+    )
+
+'''
+    Posts a new message to a SQS queue which will be further used for digest notifications
+'''
+def postToSQSQueue(message, details, status):
     return sqsclient.send_message(
         QueueUrl=queueURL,
         MessageBody=message,
-        MessageAttributes={
+        MessageAttributes= {
             'Topic': {
                 'StringValue': 'Backup',
                 'DataType': 'String'
             },
             'SubTopic': {
-                'StringValue': 'Snapshots deleted (' + str(retentionDays) + ' days passed)',
+                'StringValue': 'Snapshots taken',
                 'DataType': 'String'
             },
             'Status': {
@@ -61,37 +172,159 @@ def postToSQSQueue(message, details, status, retentionDays):
         }
     )
 
-def deleteSnapshot(snapId, retention):
-    time.sleep(randint(2,20))
-    max_retries = 10
-    iteration = 1
-    lastError = ''
-    while max_retries >= iteration:
-        try:
-            client.delete_snapshot(SnapshotId=snapId)
-            print "Deleted snapshot %s" % snapId
-            return True
-        except Exception as whatsWrong:
-            iteration += 1
-            lastError = str(whatsWrong)
-            if 'InvalidSnapshot.InUse'.lower() in str(whatsWrong).lower() or 'InvalidSnapshot.NotFound'.lower() in str(whatsWrong).lower():
-                print 'Snapshot is in use or not found!'
-                return False
-            if 'RequestLimitExceeded'.lower() in str(whatsWrong).lower():
-                time.sleep(randint(3 * iteration, 6 * iteration))
-            else:
-                print('unexpected error in snapshot deletion, sending notification')
-                postToSQSQueue("Error", str(whatsWrong), "Error", retention)
-                return False
-    if max_retries <= iteration:
-        print "Was not able to delete the snapshot, exiting !"
-        postToSQSQueue("Error", lastError, "Error", retention)
+
+'''
+    Function to check if a snapshot got already created today
+'''
+def checkIfTodaysSnapAlreadyExists(vol_id):
+    response = ec2Client.describe_snapshots(
+        Filters=[
+        {
+            'Name': 'volume-id',
+            'Values': [
+                vol_id
+            ]
+        }]
+    )
+    if 'Snapshots' in response:
+        for snapshot in response['Snapshots']:
+            if snapshot['StartTime'].date() == todayDate:
+                return True
     return False
-        
+
+
+'''
+    Function which checks if a snapshot created today got equipped with tags 
+'''
+def checkIfTagsAddedToSnapshot(vol_id):
+    response = ec2Client.describe_snapshots(
+        Filters=[
+        {
+            'Name': 'volume-id',
+            'Values': [
+                vol_id
+            ]
+        }]
+    )
+    if 'Snapshots' in response:
+        for snapshot in response['Snapshots']:
+            if snapshot['StartTime'].date() == todayDate:
+                if len(snapshot['Tags']) > 1:
+                    return True
+    return False
 
 #Lambda main function
 def lambda_handler(event, context):
-    for snap_info in event["Snapshots"]:
-        snap = snap_info["snapID"]
-        if deleteSnapshot(snap, snap_info['retention']):
-            postToSQSQueue("OK", snap, "OK", snap_info['retention'])
+    global globalError
+    done = []
+    # Checking for past tries to backup a Volume and pull value from there
+    vol_storage = {}
+    if "iteration" in event:
+        iteration = int(event["iteration"])
+        log.error("Found previous failed attempt to do a snapshot, this is the " + str(iteration) + " attempt!")
+    else:
+        iteration = 0
+    for vol_info in event['Volumes']:
+        vol_id   = vol_info['VolumeId']
+        vol_name = vol_info['DeviceName']
+        snapshotTaken = False
+        tagsApplied = False
+
+        # Going to check payload if there may be a snapshot taken already in a previous run
+        if "SnapshotTaken" in vol_info:
+            if vol_info["SnapshotTaken"] != "False":
+                try:
+                    snapshotTaken = ec2.Snapshot(vol_info["SnapshotTaken"])
+                    # check if tags already assigned, if yes we continue with next Volume
+                    if len(snapshotTaken.tags) > 0:
+                        log.debug("Found tags already applied, we are not doing anything with that volume anymore !")
+                        done.append(vol_id)
+                        continue
+                except Exception as snapshotException:
+                    log.error("There went something wrong: " + str(snapshotException))
+                    globalError += '\n' + str(snapshotException)
+                    snapshotTaken = False
+            else:
+                snapshotTaken = False
+
+        description = vol_info['InstanceId'] + '-' + vol_info['DeviceName'] + '-Backup-' + today_date
+        if snapshotTaken == False:
+            createdSnapshot = createSnapshot(vol_id, vol_name, vol_info['InstanceId'], description)
+        else:
+            createdSnapshot = snapshotTaken
+
+
+        if createdSnapshot:
+            if createdSnapshot == 'errorstate':
+                log.error("Volume " + vol_id + " is in error state")
+                done.append(vol_id)
+                postToSNSTopic("Volume " + vol_id + " in error state", "Volume " + vol_id + " in error state\nPlease check at your earliest convenience because the retention period may wipe out all remaining snapshots")
+                postToSQSQueue("Volume ErrorState", "Volume " + vol_id + " in error state. Please check at your earliest convenience because the retention period may wipe out all remaining snapshots", "Error")
+                continue
+            elif createdSnapshot == True:
+                log.debug("Snapshotcreation already running, checking next Volume")
+                globalError += '\nSnapshotcreation for ' + vol_id + ' already running'
+                done.append(vol_id)
+                continue
+            else:
+                #Snapshot got created probably, continue with tagging
+                log.debug("Created Snapshot " + createdSnapshot.snapshot_id + " for " + vol_id + " successfully")
+                vol_storage[vol_info['VolumeId']] = { "snapshotTaken": createdSnapshot.snapshot_id }    
+            
+            retentionToUse = retentionPeriodNonProd
+            if 'Tags' in event:
+                environment = [x['Value'] for x in event["Tags"] if x['Key'].lower() == 'env'][0]
+                if environment.lower() == 'prd':
+                    retentionToUse = retentionPeriod
+
+            if applyTags(createdSnapshot, event['Tags'], vol_name, retentionToUse):
+                #tagging went good as well nothing to do anymore for this Volume
+                log.debug("Tags successfully applied to " + createdSnapshot.snapshot_id)
+                tagsApplied = True
+                done.append(vol_id)
+                postToSQSQueue("OK", vol_id, "OK")
+                continue
+            else:
+                # tagging did error out, let this be handled in the next 
+                log.error("Was not able to apply tags to " + createdSnapshot.snapshot_id)
+                globalError += '\nWas not able to apply tags to ' + createdSnapshot.snapshot_id
+                # if tagging fails we have a more serious problem, implementing a switch which just do tagging
+        else:
+            # Snapshot got not created, whats now ?
+            log.error("Was not able to create snapshot of " + vol_id)
+            globalError += '\nWas not able to create snapshot of ' + vol_id
+            vol_storage[vol_info['VolumeId']] = { "snapshotTaken": False }
+            snapshotTaken = False
+
+        if snapshotTaken == False or tagsApplied == False:
+            # Giving up after 5 times invoking itself and send a SNS Message to CloudOps
+            if iteration > 5:
+                errorSubject = description + ' in ' + accountName
+                errorMessage = 'Error in snapshot creation for Volume ' + vol_id
+                postToSQSQueue(errorSubject, errorMessage, "Error")
+                exit()
+
+            volumeString = ""
+            tagString = ""
+            for volume in event['Volumes']:
+                if volume['VolumeId'] not in done:
+                    if volumeString != '':
+                        volumeString += ','
+                    volumeString += '{ "VolumeId": "' + volume['VolumeId'] + '", "InstanceId": "' + volume['InstanceId'] + '", "DeviceName": "' + volume['DeviceName'] + '"'
+                    if vol_info['VolumeId'] in vol_storage and "snapshotTaken" in vol_storage[vol_info['VolumeId']]:
+                        volumeString += ', "SnapshotTaken": "'+ str(vol_storage[vol_info['VolumeId']]["snapshotTaken"]) +'"'
+                    volumeString += '}'
+
+            for tag in event['Tags']:
+                if tagString != '':
+                    tagString += ','
+                tagString += '{ "Key": "'+ tag['Key'] +'", "Value": "' + tag['Value'] + '"}'
+            iteration += 1
+            client_lambda.invoke(
+                FunctionName='ops-ebs-snapshot-invoke',
+                InvocationType='Event',
+                LogType='None',
+                Payload='{"Volumes": [' + volumeString + '], "Tags": [' + tagString + '], "iteration": "' + str(iteration) + '"}'
+            )
+            log.error('Need to invoke itself, sending following payload: {"Volumes": [' + volumeString + '], "Tags": [' + tagString + '], "iteration": "' + str(iteration) + '"}')
+            exit()
