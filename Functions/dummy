@@ -1,255 +1,94 @@
-#ops-ebs-backup.yml
----
-AWSTemplateFormatVersion: '2010-09-09'
-Description: Deploy the ops-ebs-snapshots Lambda
+#!/usr/bin/python
+# ops-scheduled-events.py
+# =============================================================================
+# title           : ops-scheduled-events/index.py
+# description     : Lambda function to find scheduled-events instance list.
+# author          : Amit Prajapati (502712302)
+# orig revision   : 2017-07-11
+# version         : 1.0
+# usage           : To perform any maintenance activity and aware of downtime.
+# notes           :
+# python_version  : 2.7.10
+# ==============================================================================
 
-# 04-Oct-2017: Convert from JSON and add GovCloud support
-#  original from https://github.build.ge.com/power-cloud/ops-lambda/blob/master/ebs-backup/ops-ebs-backup.json
-# 
+import boto3
+import logging
+import os
+import json
 
-Parameters:
-    ArnStart:
-      Type: String
-      Description: "The start of an ARN. 'arn:aws-us-gov' for GovCloud, 'arn:aws' otherwise"
-      Default: 'arn:aws'
+logging.basicConfig()
+log = logging.getLogger()
+log.setLevel(logging.INFO)
 
-Mappings:
-  Accounts:
-    '322870840626':
-      RetentionPeriod: 35
-      RetentionPeriodNonProd: 2
-      AccountName: ent-emea-pnw (322870840626)
-      SQSQueueARN: 'https://sqs.us-east-1.amazonaws.com/988201728534/ops-message-queue'
-    '951854665038':
-      RetentionPeriod: 2
-      RetentionPeriodNonProd: 2
-      AccountName: ent-emea-pnw-preprod (951854665038)
-      SQSQueueARN: 'https://sqs.us-east-1.amazonaws.com/988201728534/ops-message-queue'
-    '930136447543':
-      RetentionPeriod: 2
-      RetentionPeriodNonProd: 2
-      AccountName: pnw-preprod (930136447543)
-      SQSQueueARN: 'https://sqs.us-east-1.amazonaws.com/988201728534/ops-message-queue'
-    '988201728534':
-      RetentionPeriod: 35
-      RetentionPeriodNonProd: 2
-      AccountName: pnw-prod (988201728534)
-      SQSQueueARN: 'https://sqs.us-east-1.amazonaws.com/988201728534/ops-message-queue'
-    '564772463473':
-      RetentionPeriod: 2
-      RetentionPeriodNonProd: 2
-      AccountName: pwr-power-services (564772463473)
-      SQSQueueARN: 'https://sqs.us-east-1.amazonaws.com/988201728534/ops-message-queue'
-    '821735935111':
-      RetentionPeriod: 35
-      RetentionPeriodNonProd: 2
-      AccountName: pwr-primavera (821735935111)
-      SQSQueueARN: 'https://sqs.us-east-1.amazonaws.com/988201728534/ops-message-queue'
-    '510369821637':
-      RetentionPeriod: 35
-      RetentionPeriodNonProd: 2
-      AccountName: pwr-water (510369821637)
-      SQSQueueARN: 'https://sqs.us-east-1.amazonaws.com/988201728534/ops-message-queue'
-    '753920291680':
-      RetentionPeriod: 35
-      RetentionPeriodNonProd: 2
-      AccountName: pwr-datalake (753920291680)
-      SQSQueueARN: 'https://sqs.us-east-1.amazonaws.com/988201728534/ops-message-queue'
-    '444238132467':
-      RetentionPeriod: 35
-      RetentionPeriodNonProd: 2
-      AccountName: ge-data-analytics (444238132467)
-      SQSQueueARN: 'https://sqs.us-east-1.amazonaws.com/988201728534/ops-message-queue'
-      
-    # 04-Oct-2017 - add support for GovCloud
-    '378254909215':
-      RetentionPeriod: 35
-      RetentionPeriodNonProd: 2
-      AccountName: gov-pwr-sharedec (378254909215)
-      SQSQueueARN: 'https://sqs.us-gov-west-1.amazonaws.com/378254909215/ops-message-queue'      
-      
-      
-Resources:
- # snapshots
-  opsEbsSnapshots:
-    Type: AWS::Lambda::Function
-    Properties:
-      Handler: ops-ebs-snapshots.lambda_handler
-      Description: lambda function takes ebs snapshots
-      FunctionName: ops-ebs-snapshots
-      Role: !Sub "${ArnStart}:iam::${AWS::AccountId}:role/hq/bu-pw-lambda-cloudops"
-      Code:
-        S3Bucket: !Sub "ops-lambda-${AWS::AccountId}"
-        S3Key: ebs-backup.zip
-      Runtime: python2.7
-      Timeout: '300'
-      MemorySize: '128'
-      Environment:
-        Variables:
-          RETENTION_PERIOD: !FindInMap [ Accounts, !Ref 'AWS::AccountId', RetentionPeriod  ]
-          RETENTION_NON_PROD_PERIOD: !FindInMap [ Accounts, !Ref 'AWS::AccountId', RetentionPeriodNonProd  ]
-          ACCOUNT_NAME: !FindInMap [ Accounts, !Ref 'AWS::AccountId', AccountName  ]
-          SNS_TOPIC: !Ref CloudOpsNotificationsBackup
-          # SNS_TOPIC: !Sub 
-                          # - "${ArnStart}:sns:${AWS::Region}:${AWS::AccountId}:${Topic}"
-                          # - { Topic: !GetAtt CloudOpsNotificationsBackup.TopicName }
-          SQS_URL: !FindInMap [ Accounts, !Ref 'AWS::AccountId', SQSQueueARN  ]
-      Tags:
-      - Key: UAI
-        Value: UAI2008347
-        
-  opsEbsSnapshotsLogGroup:
-    Type: AWS::Logs::LogGroup
-    DependsOn: opsEbsSnapshots
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${opsEbsSnapshots}"
-      RetentionInDays: 7
-  opsEbsSnapshotInvoke:
-    Type: AWS::Lambda::Function
-    DependsOn: CloudOpsNotificationsBackup
-    Properties:
-      Handler: ops-ebs-snapshot-invoke.lambda_handler
-      Description: ops-ebs-snapshot-invoke
-      FunctionName: ops-ebs-snapshot-invoke
-      Role: !Sub "${ArnStart}:iam::${AWS::AccountId}:role/hq/bu-pw-lambda-cloudops"
-      Code:
-        S3Bucket: !Sub "ops-lambda-${AWS::AccountId}"
-        S3Key: ebs-backup.zip
-      Runtime: python2.7
-      Timeout: '300'
-      MemorySize: '128'
-      Environment:
-        Variables:
-          RETENTION_PERIOD: !FindInMap [ Accounts, !Ref 'AWS::AccountId', RetentionPeriod  ]
-          RETENTION_NON_PROD_PERIOD: !FindInMap [ Accounts, !Ref 'AWS::AccountId', RetentionPeriodNonProd  ]
-          ACCOUNT_NAME: !FindInMap [ Accounts, !Ref 'AWS::AccountId', AccountName  ]
-          SNS_TOPIC: !Ref CloudOpsNotificationsBackup
-          SQS_URL: !FindInMap [ Accounts, !Ref 'AWS::AccountId', SQSQueueARN  ]
-      Tags:
-      - Key: UAI
-        Value: UAI2008347
-        
-        
-  opsEbsSnapshotInvokeLogGroup:
-    Type: AWS::Logs::LogGroup
-    DependsOn: opsEbsSnapshotInvoke
-    Properties:
-      LogGroupName:
-        Fn::Join:
-        - ''
-        - - "/aws/lambda/"
-          - Ref: opsEbsSnapshotInvoke
-      RetentionInDays: 7
-  opsEbsSnapshotSchedule:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: ops-ebs-snapshots-notifier
-      Description: take backups at Daily 2:00 AM UTC and if any error then send notification to CloudOps
-      ScheduleExpression: cron(0 2 1/1 * ? *)
-      State: ENABLED
-      Targets:
-      - Arn: !GetAtt opsEbsSnapshots.Arn
-        Id: lambda_handler
+logging.getLogger('boto3').setLevel(logging.ERROR)
 
-  PermissionForEventsToInvokeLambda:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref opsEbsSnapshots
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt opsEbsSnapshotSchedule.Arn
-      
- # delete      
-  opsEbsDeleteSnapshots:
-    Type: AWS::Lambda::Function
-    Properties:
-      Handler: ops-ebs-snapshots-delete.lambda_handler
-      Description: ops-ebs-snapshots-delete
-      FunctionName: ops-ebs-snapshots-delete
-      Role: !Sub "${ArnStart}:iam::${AWS::AccountId}:role/hq/bu-pw-lambda-cloudops"
-      Code:
-        S3Bucket: !Sub "ops-lambda-${AWS::AccountId}"
-        S3Key: ebs-backup.zip
-      Runtime: python2.7
-      Timeout: '300'
-      MemorySize: '256'
-      Environment:
-        Variables:
-          RETENTION_PERIOD: !FindInMap [ Accounts, !Ref 'AWS::AccountId', RetentionPeriod  ]
-          RETENTION_NON_PROD_PERIOD: !FindInMap [ Accounts, !Ref 'AWS::AccountId', RetentionPeriodNonProd  ]
-          ACCOUNT_NAME: !FindInMap [ Accounts, !Ref 'AWS::AccountId', AccountName  ]
-          SNS_TOPIC: !Ref CloudOpsNotificationsBackup
-          SQS_URL: !FindInMap [ Accounts, !Ref 'AWS::AccountId', SQSQueueARN  ]
-      Tags:
-      - Key: UAI
-        Value: UAI2008347
+client = boto3.client('ec2')
+sqsclient = boto3.client('sqs', region_name='us-east-1')
+boto_session = boto3.session.Session()
+current_region = boto_session.region_name
+accountName = os.getenv('ACCOUNT_NAME', '')
+queueURL = os.getenv('SQS_URL', '')
 
-  opsEbsDeleteSnapshotsLogGroup:
-    Type: AWS::Logs::LogGroup
-    DependsOn: opsEbsDeleteSnapshots
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${opsEbsDeleteSnapshots}"
-      RetentionInDays: 7
-  
-  
-  opsEbsDeleteSnapshotsInvoke:
-    Type: AWS::Lambda::Function
-    Properties:
-      Handler: ops-ebs-snapshots-delete-invoke.lambda_handler
-      Description: ops-ebs-snapshots-delete-invoke
-      FunctionName: ops-ebs-snapshots-delete-invoke
-      Role: !Sub "${ArnStart}:iam::${AWS::AccountId}:role/hq/bu-pw-lambda-cloudops"
-      Code:
-        S3Bucket: !Sub "ops-lambda-${AWS::AccountId}"
-        S3Key: ebs-backup.zip
-      Runtime: python2.7
-      Timeout: '300'
-      MemorySize: '128'
-      Environment:
-        Variables:
-          RETENTION_PERIOD: !FindInMap [ Accounts, !Ref 'AWS::AccountId', RetentionPeriod  ]
-          RETENTION_NON_PROD_PERIOD: !FindInMap [ Accounts, !Ref 'AWS::AccountId', RetentionPeriodNonProd  ]
-          ACCOUNT_NAME: !FindInMap [ Accounts, !Ref 'AWS::AccountId', AccountName  ]
-          SNS_TOPIC: !Ref CloudOpsNotificationsBackup
-          SQS_URL: !FindInMap [ Accounts, !Ref 'AWS::AccountId', SQSQueueARN  ]
-      Tags:
-      - Key: UAI
-        Value: UAI2008347
-        
-  opsEbsDeleteSnapshotsInvokeLogGroup:
-    Type: AWS::Logs::LogGroup
-    DependsOn: opsEbsDeleteSnapshotsInvoke
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${opsEbsDeleteSnapshotsInvoke}"
-      RetentionInDays: 7
-      
-  opsEbsSnapshotDeleteSchedule:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: ops-ebs-delete-snapshots-notifier
-      Description: Delete backups at Daily 4:00 AM UTC and if any error then send
-        notification to CloudOps
-      ScheduleExpression: cron(0 4 1/1 * ? *)
-      State: ENABLED
-      Targets:
-      - Arn: !GetAtt opsEbsDeleteSnapshots.Arn
-        Id: lambda_handler
-        
-  PermissionForEventsToInvokeDeleteLambda:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName:
-        Ref: opsEbsDeleteSnapshots
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt opsEbsSnapshotDeleteSchedule.Arn
-      
- # SNS topic      
-  CloudOpsNotificationsBackup:
-    Type: AWS::SNS::Topic
-    Properties:
-      DisplayName: CloudOpsNotificationsBackup
-      TopicName: CloudOpsNotificationsBackup
-      Subscription:
-      - Endpoint: pwenterprisecloudops@ge.com
-        Protocol: email
+
+# Lambda main function
+
+def lambda_handler(event, context):
+    if event == None:
+        log.debug('We are executing local ....')
+
+    response = \
+        client.describe_instance_status(Filters=[{'Name': 'event.code',
+                                                  'Values': ['instance-reboot', 'system-reboot',
+                                                             'system-maintenance', 'instance-stop',
+                                                             'instance-retirement'
+                                                             ]}])
+
+    json_data = []
+    for i in response['InstanceStatuses']:
+        data = {}
+        data['InstanceID'] = i['InstanceId']
+        data['InstanceState'] = i['InstanceState']['Name']
+        instanceState = data['InstanceState']
+        for event in i['Events']:
+            data['Event_Code'] = event['Code']
+            data['Event_Description'] = event['Description']
+            json_data.append(data)
+        if 'Completed'.lower() not in str(data['Event_Description']).lower():
+            postToSQSQueue("Scheduled Events", "InstanceID " + data['InstanceID'] , " Event_Code " + data['Event_Code'])
+    log.info(json_data)
+
+'''
+    Posts a new message to a SQS queue which will be further used for digest notifications
+'''
+
+
+def postToSQSQueue(message, details, status):
+    return sqsclient.send_message(
+        QueueUrl=queueURL,
+        MessageBody=message,
+        MessageAttributes={
+            'Topic': {
+                'StringValue': 'Scheduled_Events',
+                'DataType': 'String'
+            },
+            'Status': {
+                'StringValue': status,
+                'DataType': 'String'
+            },
+            'Details': {
+                'StringValue': details,
+                'DataType': 'String'
+            },
+            'Account': {
+                'StringValue': accountName,
+                'DataType': 'String'
+            }
+        }
+    )
+
+
+# for local testing
+
+if __name__ == '__main__':
+    logging.basicConfig()
+    lambda_handler(None, None)
