@@ -1,0 +1,46 @@
+#!/bin/bash
+# rolloutFunction.sh
+# Rollout EBS Backup to all VPCs
+# The last parameter [water,us-prod,eu-prod,...] is the profile-name, use the same name and you are able to execute this without any changes
+# please refer to https://github.build.ge.com/pw-cloud/pw-scripts and check on lambdadeploy, ld is actually an alias in ~/.bash_profile which
+# looks like the following 
+# alias ld='function _ld(){ export AWS_PROFILE=${@:$#}; lambdadeploy ${*%${!#}}; };_ld'
+
+case "$OSTYPE" in
+  linux*)   
+	shopt -s expand_aliases
+	source ~/.bashrc ;;
+  darwin*|cygwin*)
+	shopt -s expand_aliases
+	source ~/.bash_profile ;;
+  *)        
+	echo "unknown: $OSTYPE" 
+	exit ;;
+esac
+
+echo "Processing Water VPC"
+ld updateCode=y water
+echo ""
+echo "Processing US Prod VPC"
+ld updateCode=y us-prod
+echo ""
+echo "Processing EU Prod VPC"
+ld updateCode=y eu-prod
+echo ""
+echo "Processing Power Services VPC"
+ld updateCode=y power-services
+echo ""
+echo "Processing Primavera VPC"
+ld updateCode=y primavera
+echo ""
+echo "Processing US Pre Prod VPC"
+ld updateCode=y us-pre-prod
+echo ""
+echo "Processing EU Pre Prod VPC"
+ld updateCode=y eu-pre-prod
+echo ""
+echo "Processing Datalake VPC"
+ld updateCode=y datalake
+echo ""
+echo "Processing Dataanalytics VPC"
+ld updateCode=y analytics
