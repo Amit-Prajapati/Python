@@ -1,191 +1,161 @@
-#!/usr/bin/python
+#!/bin/env python
 
-# =============================================================================
-# title           : ops-events-digest-messenger.py
-# description     : This function will read all message from a SQS queue once in a week and compose a digest Email for CloudOps
-#                 : Also there will be some aggregation provided to minimize duplicate messages
-# author          : Amit Prajapati (502712302)
-# orig revision   : 2017-07-18
-# version         : 1.0
-# usage           : used through Lambda, running local does read the SQS Queue as well but does not delete those after processing (they will get invisible for 5 minutes)
-# notes           :
-# python_version  : 2.7.10
-# ==============================================================================
+#==============================================================================
+#title           : ops-scheduled-reboots/ops-scheduled-reboots-invoke.py
+#description     : Lambda function which reboots instances in bulks for i.e. applying patches - this is the executing function
+#author          : Andreas Pfister (105026584)
+#orig revision   : 2017-03-22
+#version         : 1.0
+#usage           : Does run in Lambda only at the moment and should be invoked by the main function
+#notes           : CONCURRENT_REBOOTS does set the amount of instances which should be rebooted at once within a 2 minutes timeframe
+#                : DRY_RUN does "disarm" the function and only tests if a reboot could be done, with that you can check if the flow is working
+#                : SNS_TOPIC should be self explaining, this is the topic used to send notifications if something went wrong
 
-import boto3
+#                : Please use lambdadeploy (https://github.build.ge.com/pw-cloud/pw-scripts/blob/master/support/py/lambdadeploy.py) within this directory to get the whole function deployed through Cloudformation
+#                : by using lambdadeploy an already existing stack will get updated and/or if only the Code got changed this will be updated as well
+
+#python_version  : 2.7.10  
+#==============================================================================
+
 import os
-import json
+import boto3
+import botocore
 import logging
-import collections
+import sys
+import json
+import time
 
-sqsclient = boto3.client('sqs', region_name='us-east-1')
-snsclient = boto3.client('sns')
-queueURL = os.getenv('SQS_URL', '')
-notificationARN = os.getenv('SNS_TOPIC', '')
+logging.basicConfig()
+log = logging.getLogger()
+log.setLevel(logging.INFO)
 
+logging.getLogger("boto3").setLevel(logging.ERROR)
+logging.getLogger("botocore").setLevel(logging.ERROR)
 
-'''
-    Send SNS message to notificationARN provided through environment parameters
-'''
+client            = boto3.client('ec2')
+snsclient         = boto3.client('sns')
+sqsclient         = boto3.client('sqs', region_name='us-east-1')
+client_lambda     = boto3.client('lambda')
+notificationARN   = os.getenv('SNS_TOPIC', '')
+dryRun            = os.getenv('DRY_RUN', '')
+queueURL          = os.getenv('SQS_URL', '')
+accountName       = os.getenv('ACCOUNT_NAME', 'NOT_SET')
+dry               = dryRun == "on"
 
-
-def postToSNSTopic(subject, message):
-    return snsclient.publish(
-        TargetArn=notificationARN,
-        Message=str(message),
-        Subject=subject,
-        MessageStructure='string'
-    )
-
+try:
+	concurrentReboots = int(os.getenv('CONCURRENT_REBOOTS', '10'))
+except:
+	concurrentReboots = 10
 
 '''
     Posts a new message to a SQS queue which will be further used for digest notifications
 '''
-
-
-def postToSQSQueue(message):
+def postToSQSQueue(message, details, status):
     return sqsclient.send_message(
         QueueUrl=queueURL,
-        MessageBody=message
+        MessageBody=message,
+        MessageAttributes= {
+            'Topic': {
+                'StringValue': 'Maintenance',
+                'DataType': 'String'
+            },
+            'SubTopic': {
+                'StringValue': 'Instance Reboot',
+                'DataType': 'String'
+            },
+            'Status': {
+                'StringValue': status,
+                'DataType': 'String'
+            },
+            'Details': {
+                'StringValue': details,
+                'DataType': 'String'
+            },
+            'Account': {
+                'StringValue': accountName,
+                'DataType': 'String'    
+            }
+        }
     )
 
 '''
-	Update a nested dictionary or similar mapping.
-	Modify ``source`` in place.
+    Send SNS message to notificationARN provided through environment parameters
 '''
-def deep_update(source, overrides):
-    print "Inside deep_update function"
-    for key, value in overrides.iteritems():
-        if isinstance(value, collections.Mapping) and value:
-            returned = deep_update(source.get(key, {}), value)
-            source[key] = returned
-        else:
-            source[key] = overrides[key]
-    return source
+def postToSNSTopic(subject, message):
+	if notificationARN != '':
+		response = snsclient.publish(
+			TargetArn=notificationARN,
+			Message=str(message),
+			Subject=str(subject),
+			MessageStructure='string'
+		)
+	else:
+		log.error("No NotificationARN environment variable set, cannot send notifications")
 
 '''
-    Pulling all SQS Messages and get them deleted right afterwards
+	Reboot a list of instances
 '''
+def rebootInstance(instanceIds):
+	try:
+		client.reboot_instances(
+			DryRun=dry,
+			InstanceIds=instanceIds
+		)
+		for instance in instanceIds:
+			postToSQSQueue("Instance Reboot", str(instance), "OK")
+	except Exception as errorDetails:
+		log.error('Error in rebooting the following instances: \n' + json.dumps(instanceIds, sort_keys=True, indent=4) + '\n\n' + str(errorDetails))
+		for instance in instanceIds:
+			postToSQSQueue("Instance Reboot", str(instance) + ": " + str(errorDetails), "Error")
 
 
-def pullFromSQSQueue(debug=False):
-    print "Inside pullFromSQSQueue function"
-    messages = {"Messages": []}
-    while True:
-        currentMessages = sqsclient.receive_message(
-            QueueUrl=queueURL,
-            AttributeNames=[
-                'ApproximateNumberOfMessages'
-            ],
-            MessageAttributeNames=[
-                "Topic",
-                "Status",
-                "Details",
-                "Account"
-            ],
-            MaxNumberOfMessages=10
-        )
-        print currentMessages
-        if "Messages" in currentMessages and len(currentMessages["Messages"]) > 0:
-            for message in currentMessages["Messages"]:
-                messages["Messages"].append(message)
-        else:
-            return messages
-        # Delete the messages
-        deleteEntries = []
-        for message in currentMessages["Messages"]:
-            if debug:
-                deleteEntries.append({
-                    'Id': message['MessageId'],
-                    'ReceiptHandle': message['ReceiptHandle'],
-                    'VisibilityTimeout': 300
-                })
-            else:
-                deleteEntries.append({
-                    'Id': message['MessageId'],
-                    'ReceiptHandle': message['ReceiptHandle']
-                })
-        if debug:
-            response = sqsclient.change_message_visibility_batch(
-                QueueUrl=queueURL,
-                Entries=deleteEntries
-            )
-        else:
-            response = sqsclient.delete_message_batch(
-                QueueUrl=queueURL,
-                Entries=deleteEntries
-            )
-
-
+#Lambda main function
 def lambda_handler(event, context):
-    print "Doing the needful"
-    sortedData = {}
-    messageString = ''
-    accountSeparator = '=' * 50
-    topicSeparator = '-' * 48
-    topicIndent = '\n' + (' ' * 2)
-    summaryIndent = '\n' + (' ' * 8)
+	if dry:
+		log.info("We are running in dryRun Mode which does not initiate a real reboot, this is for simulating the flow")
+	if 'Instances' in event:
+		if len(event['Instances']) > 0:
+			instanceList = event['Instances']
+			rebootList = []
+			iterator   = 1
+			# Building list of instances to reboot
+			for instance in instanceList:
+				if iterator <= concurrentReboots:
+					rebootList.append(instance)
+				iterator += 1
+			# removing the elements from the instanceList
+			for instance in rebootList:
+				instanceList.remove(instance)
+			
+			# initiating reboots, if they fail we are continuing with next "block" but sending a SNS notification
+			rebootInstance(rebootList)
+			
+			# Some additional output in the logfiles if we are running in Dry Mode
+			if dry:
+				log.info("Just simulated the reboot of the following instances: " + str(rebootList))
+				if len(instanceList) > 0:
+					log.info(str(len(instanceList)) + " Instances left, passing those further")
+				else:
+					log.info("No Instances left, all done !")
 
-    data = pullFromSQSQueue(event == None)
-    if "Messages" in data and len(data["Messages"]) > 0:
-        for message in data["Messages"]:
-            print "++++++++++++++++++++++++++++++++++++++"
-            print message
-            firstData = False
-            if "MessageAttributes" in message:
-                if "Topic" in message["MessageAttributes"]:
-                    if message["MessageAttributes"]["Account"]["StringValue"] in sortedData:
-                        if message["MessageAttributes"]["Topic"]["StringValue"] in sortedData[
-                            message["MessageAttributes"]["Account"]["StringValue"]]:
-                            sortedData[message["MessageAttributes"]["Account"]["StringValue"]][
-                                message["MessageAttributes"]["Topic"]["StringValue"]].append({
-                                "Status": message["MessageAttributes"]["Status"]["StringValue"],
-                                "Details": message["MessageAttributes"]["Details"]["StringValue"]
-                            })
-                        else:
-                            firstData = True
-                    else:
-                        firstData = True
-                else:
-                    firstData = True
-                if firstData == True:
-                    deep_update(sortedData, {
-                        message["MessageAttributes"]["Account"]["StringValue"]: {
-                            message["MessageAttributes"]["Topic"]["StringValue"]: [{
-                                "Status": message["MessageAttributes"]["Status"]["StringValue"],
-                                "Details": message["MessageAttributes"]["Details"]["StringValue"]
-                            }]
-                        }
-                    })
-        # Compose Message
-        for account in sortedData:
-            messageString += '\n\n\n' + accountSeparator + '\n' + account + '\n' + accountSeparator + '\n'
-            for topic in sortedData[account]:
-                messageString += topicIndent + topic
-                messageString += topicIndent + topicSeparator
-                subDone = False
-                uniqueStatus = set(item['Status'] for item in sortedData[account][topic])
-                counts = {}
-                for status in uniqueStatus:
-                    for item in sortedData[account][topic]:
-                        if item["Status"] == status:
-                            counts[status] = counts.get(status, 0) + 1
-                for item in counts:
-                    messageString += summaryIndent + item + ":\t\t" + str(counts[item])
-                    uniqueDetails = set(
-                        detail['Details'] for detail in sortedData[account][topic] if detail['Status'] == item)
-                    for detail in uniqueDetails:
-                        messageString += summaryIndent + '    ' + detail
-                messageString += '\n\n'
-        # Print or send Message (depending on if running local or within Lambda)
-        if event == None:
-            print "This is the message which will get send:"
-            print messageString
-        else:
-            postToSNSTopic('Schedules-events instances', messageString)
-    else:
-        print "Nothing to send at the moment, exiting"
+			if len(instanceList) > 0:
+				# Sleeping for 2 minutes and pass list further
+				time.sleep(120)
+				payload = { "Instances": [] }
+				payload["Instances"] = instanceList
+				response = client_lambda.invoke(
+					FunctionName='ops-scheduled-reboots-invoke',
+					InvocationType='Event',
+					LogType='None',
+					Payload=json.dumps(payload)
+				)
 
+	else:
+		log.error('Payload is not as expected, you should pass a list of instanceIds')
+		sys.exit(1)
+
+
+# for local testing
 if __name__ == "__main__":
-    print "Starting local"
-    lambda_handler(None, None)
+	logging.basicConfig()
+	lambda_handler(None, None)
