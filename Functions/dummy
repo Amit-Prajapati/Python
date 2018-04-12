@@ -1,94 +1,89 @@
-#!/usr/bin/python
-# ops-scheduled-events.py
-# =============================================================================
-# title           : ops-scheduled-events/index.py
-# description     : Lambda function to find scheduled-events instance list.
-# author          : Amit Prajapati (502712302)
-# orig revision   : 2017-07-11
-# version         : 1.0
-# usage           : To perform any maintenance activity and aware of downtime.
-# notes           :
-# python_version  : 2.7.10
-# ==============================================================================
-
-import boto3
-import logging
-import os
-import json
-
-logging.basicConfig()
-log = logging.getLogger()
-log.setLevel(logging.INFO)
-
-logging.getLogger('boto3').setLevel(logging.ERROR)
-
-client = boto3.client('ec2')
-sqsclient = boto3.client('sqs', region_name='us-east-1')
-boto_session = boto3.session.Session()
-current_region = boto_session.region_name
-accountName = os.getenv('ACCOUNT_NAME', '')
-queueURL = os.getenv('SQS_URL', '')
-
-
-# Lambda main function
-
-def lambda_handler(event, context):
-    if event == None:
-        log.debug('We are executing local ....')
-
-    response = \
-        client.describe_instance_status(Filters=[{'Name': 'event.code',
-                                                  'Values': ['instance-reboot', 'system-reboot',
-                                                             'system-maintenance', 'instance-stop',
-                                                             'instance-retirement'
-                                                             ]}])
-
-    json_data = []
-    for i in response['InstanceStatuses']:
-        data = {}
-        data['InstanceID'] = i['InstanceId']
-        data['InstanceState'] = i['InstanceState']['Name']
-        instanceState = data['InstanceState']
-        for event in i['Events']:
-            data['Event_Code'] = event['Code']
-            data['Event_Description'] = event['Description']
-            json_data.append(data)
-        if 'Completed'.lower() not in str(data['Event_Description']).lower():
-            postToSQSQueue("Scheduled Events", "InstanceID " + data['InstanceID'] , " Event_Code " + data['Event_Code'])
-    log.info(json_data)
-
-'''
-    Posts a new message to a SQS queue which will be further used for digest notifications
-'''
-
-
-def postToSQSQueue(message, details, status):
-    return sqsclient.send_message(
-        QueueUrl=queueURL,
-        MessageBody=message,
-        MessageAttributes={
-            'Topic': {
-                'StringValue': 'Scheduled_Events',
-                'DataType': 'String'
-            },
-            'Status': {
-                'StringValue': status,
-                'DataType': 'String'
-            },
-            'Details': {
-                'StringValue': details,
-                'DataType': 'String'
-            },
-            'Account': {
-                'StringValue': accountName,
-                'DataType': 'String'
-            }
-        }
-    )
-
-
-# for local testing
-
-if __name__ == '__main__':
-    logging.basicConfig()
-    lambda_handler(None, None)
+#ops-scheduled-events.yml
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Mappings:
+  Accounts:
+    '322870840626':
+      AccountName: ent-emea-pnw (322870840626)
+    '951854665038':
+      AccountName: ent-emea-pnw-preprod (951854665038)
+    '930136447543':
+      AccountName: pnw-preprod (930136447543)
+    '988201728534':
+      AccountName: pnw-prod (988201728534)
+    '564772463473':
+      AccountName: pwr-power-services (564772463473)
+    '821735935111':
+      AccountName: pwr-primavera (821735935111)
+    '510369821637':
+      AccountName: pwr-water (510369821637)
+    '753920291680':
+      AccountName: pwr-datalake (753920291680)
+Resources:
+  opsScheduledEvents:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: ops-scheduled-events.lambda_handler
+      Description: Lambda function to find scheduled-events instance list
+      FunctionName: ops-scheduled-events
+      Role:
+        Fn::Join:
+        - ":"
+        - - 'arn:aws:iam:'
+          - Ref: AWS::AccountId
+          - role/hq/bu-pw-lambda-cloudops
+      Code:
+        S3Bucket:
+          Fn::Join:
+          - "-"
+          - - ops-lambda
+            - Ref: AWS::AccountId
+        S3Key: scheduled-events.zip
+      Runtime: python2.7
+      Timeout: '300'
+      MemorySize: '128'
+      Environment:
+        Variables:
+          ACCOUNT_NAME:
+            Fn::FindInMap:
+            - Accounts
+            - Ref: AWS::AccountId
+            - AccountName
+          SQS_URL: https://sqs.us-east-1.amazonaws.com/988201728534/ops-events-message-queue
+      Tags:
+      - Key: UAI
+        Value: UAI2008347
+  opsScheduledEventsLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: opsScheduledEvents
+    Properties:
+      LogGroupName:
+        Fn::Join:
+        - ''
+        - - "/aws/lambda/"
+          - Ref: opsScheduledEvents
+      RetentionInDays: 7
+  opsScheduledEventsSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ops-ec2-events-notifier
+      Description: Lambda function to find scheduled-events instance list, every Wednesday
+      ScheduleExpression: cron(0 5 ? * 4 *)
+      State: ENABLED
+      Targets:
+      - Arn:
+          Fn::GetAtt:
+          - opsScheduledEvents
+          - Arn
+        Id: lambda_handler
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Ref: opsScheduledEvents
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+        - opsScheduledEventsSchedule
+        - Arn
