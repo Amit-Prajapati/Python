@@ -1,177 +1,96 @@
-#==============================================================================
-#title           : ops-ebs-snapshots-delete.py
-#description     : Remove Snpashots which are beyong the Standard retention time (35 days in prod, 2 days in non-prod)
-#author          : Amit Prajapati
-#date            : 2016
-#version         : 1.0
-#usage           : Used either within aws lambda, can be tested locally as well
-#notes           : Implemented in Lambda function ops-ebs-snapshots-delete
-
-# Change 05-FEB-2018 by Andy P.: Updated the method to invoke the lambda_handler within the function directly to keep alive the next Token
-# Change 21-DEC-2016 by Andy P.: Changed the way how snapshots are retrieved due to slowness, using paginator now without filters
-
-#python_version  : 2.7.10  
-#==============================================================================
+#ops-delete-ebs-snaps
+#Invoke function to delete individual snapshots.
+#Python 2.7
+#Author: Amit Prajapati
+#Note: Do not remove any comments and all commands in comment are specified for future troubleshooting
 
 import boto3
 import time
-from datetime import tzinfo, timedelta, datetime
-import json
+import datetime
 import os
 import sys
+from random import randint
 
-ZERO = timedelta(0)
-class UTC(tzinfo):
-    def utcoffset(self, dt):
-        return ZERO
-    def tzname(self, dt):
-        return "UTC"
-    def dst(self, dt):
-        return ZERO
-utc = UTC()
-
+notificationARN        = os.getenv('SNS_TOPIC', '')
+queueURL               = os.getenv('SQS_URL', '')
+accountName            = os.getenv('ACCOUNT_NAME', 'NOT_SET')
+retentionPeriod        = os.getenv('RETENTION_PERIOD', 35)
+retentionPeriodNonProd = os.getenv('RETENTION_NON_PROD_PERIOD', 2)
+regionFromSQSURL       = queueURL.split(".")[1]
 ec2                    = boto3.resource('ec2')
 client                 = boto3.client('ec2')
 client_lambda          = boto3.client('lambda')
-retentionPeriod        = os.getenv('RETENTION_PERIOD', 35)
-retentionPeriodNonProd = os.getenv('RETENTION_NON_PROD_PERIOD', 2)
-notificationARN        = os.getenv('SNS_TOPIC', '')
-maxResults             = 150000
-page                   = 500
+sns                    = boto3.resource('sns')
+snsclient              = boto3.client('sns')
+sqsclient              = boto3.client('sqs', region_name=regionFromSQSURL)
+boto_session           = boto3.session.Session()
+current_region         = boto_session.region_name
+
+'''
+    Posts a new message to a SQS queue which will be
+    further used for digest notifications
+'''
+
+
+def postToSQSQueue(message, details, status, retentionDays):
+    return sqsclient.send_message(
+        QueueUrl=queueURL,
+        MessageBody=message,
+        MessageAttributes={
+            'Topic': {
+                'StringValue': 'Backup',
+                'DataType': 'String'
+            },
+            'SubTopic': {
+                'StringValue': 'Snapshots deleted (' + str(retentionDays) + ' days passed)',
+                'DataType': 'String'
+            },
+            'Status': {
+                'StringValue': status,
+                'DataType': 'String'
+            },
+            'Details': {
+                'StringValue': details,
+                'DataType': 'String'
+            },
+            'Account': {
+                'StringValue': accountName,
+                'DataType': 'String'    
+            }
+        }
+    )
+
+def deleteSnapshot(snapId, retention):
+    time.sleep(randint(2,20))
+    max_retries = 10
+    iteration = 1
+    lastError = ''
+    while max_retries >= iteration:
+        try:
+            client.delete_snapshot(SnapshotId=snapId)
+            print "Deleted snapshot %s" % snapId
+            return True
+        except Exception as whatsWrong:
+            iteration += 1
+            lastError = str(whatsWrong)
+            if 'InvalidSnapshot.InUse'.lower() in str(whatsWrong).lower() or 'InvalidSnapshot.NotFound'.lower() in str(whatsWrong).lower():
+                print 'Snapshot is in use or not found!'
+                return False
+            if 'RequestLimitExceeded'.lower() in str(whatsWrong).lower():
+                time.sleep(randint(3 * iteration, 6 * iteration))
+            else:
+                print('unexpected error in snapshot deletion, sending notification')
+                postToSQSQueue("Error", str(whatsWrong), "Error", retention)
+                return False
+    if max_retries <= iteration:
+        print "Was not able to delete the snapshot, exiting !"
+        postToSQSQueue("Error", lastError, "Error", retention)
+    return False
+        
 
 #Lambda main function
-def lambda_handler(event, context): 
-    debug = context == None
-    count = 0
-    nonLambdaCount = 0
-    nextToken = ""
-    if debug:
-        account = boto3.client('sts').get_caller_identity().get('Account')
-    else:
-        account = context.invoked_function_arn.split(':')[4]
-    if context != None:
-        print "\n---------------------------Start------------------------------------\n"
-        print "Some information on where I was called from:"
-        print context.invoked_function_arn
-        #print "--------------------Starting now (promised)---------------------------"
-        #if context.invoked_function_arn.split(':')[5] == "function":
-        #    print "Thats an suspicious call, there is no nextToken provided which is required !!"
-        #    sys.exit(1)
-        # use paginator without filters to iterate through snapshots (much faster) .. filtering will be done later by the code
-    paginator = client.get_paginator('describe_snapshots')
-    if event != None and "nextToken" in event:
-        #print "I got invoked by myself ... I am using token " + event["nextToken"]
-        response_iterator = paginator.paginate(
-                                DryRun=False,
-                                OwnerIds=[account],
-                                PaginationConfig={
-                                    'MaxItems': maxResults, 
-                                    'PageSize': page
-                                },
-                                NextToken=event["nextToken"]
-                            )
-    else:
-        response_iterator = paginator.paginate(
-                                DryRun=False,
-                                OwnerIds=[account],
-                                PaginationConfig={
-                                    'MaxItems': maxResults, 
-                                    'PageSize': page
-                                }
-                            )
-
-    #Filtering and tag checks build into the code
-    for responseIndex,line in enumerate(response_iterator):
-        nextToken = ""
-        if "NextToken" in line:
-            nextToken = line["NextToken"]
-        for snap in line['Snapshots']:
-            # Skipping ami Snaps
-            if " for ami-" in snap['Description']:
-                #print "Skipping " + snap['SnapshotId'] + " (AMI)"
-                continue
-            retentionTagValue = ''
-            name = snap["Description"]
-            if "Tags" in snap:
-                name = [x['Value'] for x in snap["Tags"] if x['Key'] == 'Name']
-                retentionTagValue = [x['Value'] for x in snap["Tags"] if x['Key'] == 'retention_days']
-                if isinstance(name, list):
-                    if len(name) > 0:
-                        name = name[0]
-                    else:
-                        name = ''
-                if isinstance(retentionTagValue, list):
-                    if len(retentionTagValue) > 0:
-                        retentionTagValue = retentionTagValue[0]
-                    else:
-                        retentionTagValue = str(retentionTagValue)
-
-            startTime = snap["StartTime"]
-            diff = datetime.now(utc) - startTime
-            snapID = snap['SnapshotId']
-            #print "Check " + snap['SnapshotId']
-            
-            if 'Tags' in snap:
-                envArray = [x['Value'] for x in snap["Tags"] if x['Key'].lower() == 'env']
-                if len(envArray) > 0:
-                    environment = envArray[0]
-                else:
-                    environment = 'n/a'
-            else:
-                environment = "n/a"
-
-            if environment.lower() == 'prd':
-                retentionToUse = retentionPeriod
-            else:
-                retentionToUse = retentionPeriodNonProd
-
-            jsonString = ""
-            jsonString += '{ "snapID": "' + snapID + '", "retention": "' + str(retentionToUse) + '"}'
-            invokeDeletion = False
-
-            if diff.days > int(retentionToUse):
-                try:
-                    retentionTagInt = int(retentionTagValue)
-                except ValueError:
-                    retentionTagInt = 0
-
-                if str(retentionTagValue) == str(retentionToUse):
-                    count = count + 1
-                    # We found a snapshot which was created by Lambda for sure, invoking deletion        
-                    invokeDeletion = True
-                    time.sleep(0.025)
-                    #print "****** Invoked lambda function %d to delete snapshot ******" % count
-                elif retentionTagInt > 0 and diff.days > retentionTagInt:
-                    invokeDeletion = True
-                else:
-                    # What are we doing with snapshots without this tag ...
-                    # print "Skipping " + snapID + " (for now), no retention_days Tag found ("+str(snap)+")"
-                    # Deleting snapshot which got not created by Lambda and do not have any tag applied !!
-                    if "Tags" not in snap:
-                        nonLambdaCount = nonLambdaCount + 1
-                        invokeDeletion = True
-                        time.sleep(0.025)
-                        #print "****** Invoked lambda function %d to delete snapshot (unknown) ******" % nonLambdaCount
-
-            if invokeDeletion == True and debug == False:
-                client_lambda.invoke(
-                    FunctionName='ops-ebs-snapshots-delete-invoke',
-                    InvocationType='Event',
-                    LogType='None',
-                    Payload='{"Snapshots": [' + jsonString + ']}'
-                )
-            elif debug and invokeDeletion == True:
-                print "SnapshotId,RetentionTimeUsed,Environment"
-                print snapID + "," + str(retentionToUse) + "," + environment
-
-        # Breaking after first iteration (only working on 1st page a 1000 snapshots)
-        break
-    if nextToken != "":
-        print "Invoke itself to work on next snapshots"
-        lambda_handler({'nextToken': nextToken}, context)
-
-    print "Found %d Snapshots that were deleted" % (count+nonLambdaCount)
-    print "\n---------------------------End------------------------------------\n"
-
-if __name__ == "__main__":
-    lambda_handler(None, None)
+def lambda_handler(event, context):
+    for snap_info in event["Snapshots"]:
+        snap = snap_info["snapID"]
+        if deleteSnapshot(snap, snap_info['retention']):
+            postToSQSQueue("OK", snap, "OK", snap_info['retention'])
