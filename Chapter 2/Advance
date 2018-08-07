@@ -60,3 +60,5 @@ and keyword
 >>> 'amit kantibhai prajapati'.split()
 ['amit', 'kantibhai', 'prajapati']
 Comment: it will create list of all strings
+>>> '30-08-1991'.split(sep='-')
+['30', '08', '1991']
