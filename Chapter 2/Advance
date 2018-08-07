@@ -45,6 +45,7 @@ is keyword
 #1 is 1.0
 >>False
 Comment: Because it looks for exact part of the memory. id(1) will be different then id(1.0)
+Comment: The 'is' operator checks 'identity' instead of 'equality'
 
 and keyword
 #1 and 2
