@@ -62,3 +62,9 @@ and keyword
 Comment: it will create list of all strings
 >>> '30-08-1991'.split(sep='-')
 ['30', '08', '1991']
+
+
+Join:
+>>> ', '.join(['Amit', 'Kausha', 'Rasik'])
+'Amit, Kausha, Rasik'
+Comment: Take input as list and generate string
