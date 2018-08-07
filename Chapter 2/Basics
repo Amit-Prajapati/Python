@@ -65,8 +65,12 @@ Variables: define with lowerCase
 #a_word = "Amit"
 #print(a_word)
 >>Amit
-#a_Word string indexes starts from 0...n
+#a_word string indexes starts from 0...n
 Also, reverse indexes starts from -1...-n
+#a_word[::-1]
+>>timA #reverse traverse
+#a_word[::-2]
+>>tm #reverce order every 2nd character
 Note: You can reallocate variable to different data types. Eg. my_int = 0; my_int = "int" ...Here data type changed from int to string
 ****************************************************************************************************************************************
 
