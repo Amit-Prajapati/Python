@@ -50,7 +50,7 @@ Your BMI is 0.0279421433268
 Notes:
 lower() - convert user whatever case input to the lower case
 strip() - to read value without whitespace/identify any ambiguous input like upperCase/lowerCase/whitespace in between single word
-unit.startswith("i") - to check staring character of any variable
+unit.startswith("i") - to check staring character of any variable, startswith is case-insensitive
 def - is a keyword to define any function
   example: def gather_info(): OR def calculate(weight, height, unit="imperial"):
 call function - calculate(weight, height) by keeping parameters in order OR calculate(weight, unit="metric", height=height) with random keyword definition.
