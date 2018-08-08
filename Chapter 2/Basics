@@ -97,6 +97,12 @@ tuple of 1 item #('Amit', ) Note: #('Amit') it will create string... to define t
 
 Note: Sting is immutable and List is Muttable. List has no specific data types, you can assign Int, Float, Sting, Boolean
 any data type within one List.
+Tuple- can't change/manupulate any elements, List- can change any element
+TUple contain (immutable) references to underlying objects!
+Tuple packing: to swap values of variables
+x=3
+y=6
+x,y = y,x #will swap value of x and y
 ****************************************************************************************************************************************
 
 Dictionaries (dicts):-- Key Value pair {key:value}
@@ -112,3 +118,12 @@ items #dict.items()
 >>dict.get('name') # if key does not exist then it will not throw any error, preferable option while using dictionary as we might not sure about keys
 
 Note: List always in order but Dictonaries does not. It is Muttable. 
+****************************************************************************************************************************************
+Example:-
+
+for index, color in enumerate(['red', 'green', 'blue']):
+    print(index, color)
+Output:
+0 red
+1 green
+2 blue
