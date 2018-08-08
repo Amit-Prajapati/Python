@@ -10,7 +10,8 @@ bin $ cat timer.py
 ----------------------------------------------------------------------------------------------------------------------
 #!/usr/local/bin/python
 #import time
-from time import localtime, strftime, mktime
+from time import localtime, strftime, mktime #in bundle it will package only required code instead of full library.
+from math import sqrt as squareRoot #renaming imported package as per our convenience
 
 start_time = localtime()
 print("Timer starts at %s" % strftime("%X", start_time))
