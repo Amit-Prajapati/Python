@@ -68,3 +68,5 @@ Join:
 >>> ', '.join(['Amit', 'Kausha', 'Rasik'])
 'Amit, Kausha, Rasik'
 Comment: Take input as list and generate string
+
+>> python3 -i /firstScript.py #To stay in interactive mode, after completion of script to understand/debug/check variables
