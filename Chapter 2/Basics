@@ -109,5 +109,6 @@ Possible: #dict = {1:'this', 1.2:'that', 'name':'String'}
 To find only values #dict.values()
 To find only keys #dict.keys()
 items #dict.items()
+>>dict.get('name') # if key does not exist then it will not throw any error, preferable option while using dictionary as we might not sure about keys
 
 Note: List always in order but Dictonaries does not. It is Muttable. 
