@@ -70,3 +70,13 @@ Join:
 Comment: Take input as list and generate string
 
 >> python3 -i /firstScript.py #To stay in interactive mode, after completion of script to understand/debug/check variables
+------------------------------------------------------------
+
+>>> questions = ['name', 'age', 'address']
+>>> answers = ['Amit', '27', 'Mumbai']
+>>> for q, a in zip(questions, answers):
+...     print('What is your {0}: {1}'.format(q, a))
+...
+What is your name: Amit
+What is your age: 27
+What is your address: Mumbai
