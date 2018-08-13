@@ -127,3 +127,35 @@ Output:
 0 red
 1 green
 2 blue
+****************************************************************************************************************************************
+
+set = stores unique set of values and unordered
+Complexity of set is O(1)
+
+>>> basket = {'apple', 'orange', 'apple', 'pear', 'banana'}
+>>> len(basket)
+4
+>>> basket
+{'orange', 'pear', 'apple', 'banana'}
+
+few functions that can performed with sets
+>>> Set difference a - b
+>>> Union a | b
+>>> Intersection  a & b
+>>> Semmetric Difference a ^ b
+
+Example:
+>>> a=set('abracadabra')
+>>> b=set('alacazam')
+>>> a
+{'c', 'b', 'r', 'a', 'd'}
+>>> b
+{'m', 'l', 'c', 'z', 'a'}
+>>> a -b
+{'d', 'b', 'r'}
+>>> a | b
+{'c', 'm', 'r', 'b', 'd', 'a', 'z', 'l'}
+>>> a & b
+{'c', 'a'}
+>>> a ^ b
+{'m', 'r', 'b', 'd', 'z', 'l'}
