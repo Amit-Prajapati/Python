@@ -40,9 +40,10 @@ Unpacking variadic positional arguments
 >>> print(product(*primes)) //The syntax *seq unpacks a sequence into its constituent components
 2725392139750729502980713245400918633290796330545803413734328823443106201171875
 
+Variadic keyword argument list - scoops up excess keyword args into a dictionary
 Another example:
 >>> def product(*n, **kargs): //kargs is similar to multiple key=value arguement, when we don't know how many key=value arguements are present.
 >>> def product(*n, a=1, b=2, c=3) can be replace by above command
->>> for k,v in kargs.items(): // iterate as a dictonary
+>>> for k,v in kargs.items(): // iterate as a dictionary
         print(k,v , sep=': ')
 
