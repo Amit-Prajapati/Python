@@ -31,7 +31,7 @@ Unpacking variadic positional arguments
 ...                 return
 ...             else:
 ...                 return n
->>> def product(*n, a=1): // n can be single or list of data
+>>> def product(*n, a=1): // n can be single or list of values
 ...     for i in n:
 ...         a *= i
 ...     return a
