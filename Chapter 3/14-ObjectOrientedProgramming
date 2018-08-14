@@ -33,3 +33,7 @@ Difference between Method and Function:
 >>p.eat_slice() //method
 >>Function: directly calling class function
 >>Pizza.eat_slice() /function
+
+
+##Helpfil link for map, filter and reduce function.
+http://book.pythontips.com/en/latest/map_filter.html 
