@@ -1,4 +1,4 @@
->>> class Pizza():  //class definition
+>>> class Pizza:  //class definition
 ...     def __init__(self, radius, toppings, slices=8): //default constructor, self assigned
 ...             self.radius = radius
 ...             self.toppings = toppings
