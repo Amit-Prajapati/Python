@@ -1,0 +1,35 @@
+>>> class Pizza():  //class definition
+...     def __init__(self, radius, toppings, slices=8): //default constructor, self assigned
+...             self.radius = radius
+...             self.toppings = toppings
+...             self.slices_left = slices
+...     def eat_slice(self):  //function
+...             if self.slices_left > 0:
+...                     self.slices_left -= 1
+...             else:
+...                     print("Oh no! Out of Pizza")
+...     def __repr__(self): //another report default constructor
+...             return '{}" pizza'.format(self.radius) //return default value at the time of class call
+...
+>>> p = Pizza(14, ('Pepperoni', 'Olives'), slices=2) // object instantiated
+>>> print(p.eat_slice) //method
+<bound method Pizza.eat_slice of 14" pizza>
+>>> print(Pizza.eat_slice)  //function
+<function Pizza.eat_slice at 0x7f9f0ee0dd08>
+>>>
+>>>
+>>> method = p.eat_slice
+>>> method.__self__
+14" pizza
+>>> method.__func__
+<function Pizza.eat_slice at 0x7f9f0ee0dd08>
+>>>
+>>> p.eat_slice()
+>>> p.slices_left
+1
+
+Difference between Method and Function:
+>>Method: Object + Class_Function, different for every object
+>>p.eat_slice() //method
+>>Function: directly calling class function
+>>Pizza.eat_slice() /function
